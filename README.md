@@ -1,0 +1,1 @@
+# Equity viewer for poker (No-limit Texas Hold'em)
