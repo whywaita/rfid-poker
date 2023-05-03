@@ -20,7 +20,7 @@ jobs:
           node-version: '16'
       - name: Install dependencies
         run: |
-          sudo apt install -y libusb-1.0-0-dev pkg-config
+          sudo apt-get install -y libusb-1.0-0-dev pkg-config
       - name: Lint
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
