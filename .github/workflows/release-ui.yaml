@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,18 +20,21 @@ jobs:
           node-version: 16
       - name: Install NPM packages
         run: |
-          cd ui/
           npm install
+        working-directory: ui
       - name: Build Next.js app
-        run: next build
+        run: npm run build
         env:
           URL_PREFIX: rfid-poker
+        working-directory: ui
       - name: Export Next.js app
-        run: next export
+        run: npm run export
+        working-directory: ui
       - name: add nojekyll
         run: touch ./out/.nojekyll
+        working-directory: ui
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./out
+          publish_dir: ./ui/out
