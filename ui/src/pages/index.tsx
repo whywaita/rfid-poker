@@ -6,7 +6,7 @@ function Players({ hostname }:{hostname: string}) {
 
   useEffect(() => {
     if (!hostname) return;
-    const ws = new WebSocket(`ws://${hostname}/ws`);
+    const ws = new WebSocket(`${hostname}/ws`);
 
     ws.onmessage = (event) => {
       try {
@@ -47,7 +47,7 @@ function ConnectionModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClo
       <div className="fixed inset-0 form-control items-center justify-center z-50">
         <div className="bg-primary-content p-4 rounded">
           <label className="label">
-            <span className="label-text text-xl text-neutral">Set hostname or IP address</span>
+            <span className="label-text text-xl text-neutral">Endpoint (e.g. wss://192.0.2.1 )</span>
           </label>
           <input
               type="text"
