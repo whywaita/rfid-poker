@@ -56,7 +56,7 @@ func LoadCardsWithChannel(cc CardConfig, number int, ch chan HandData, sourceCh 
 		}
 
 		cached := LoadCache(in.SerialNumber)
-		if cached == nil || len(cached) == 0 {
+		if len(cached) == 0 {
 			cache.Store(in.SerialNumber, []string{card})
 			continue
 		}
@@ -90,9 +90,7 @@ func LoadCardsWithChannel(cc CardConfig, number int, ch chan HandData, sourceCh 
 				SerialNumber: in.SerialNumber,
 			}
 			ClearCache(in.SerialNumber)
-			for _, v := range l {
-				already = append(already, v)
-			}
+			already = append(already, l...)
 			continue
 		}
 	}
