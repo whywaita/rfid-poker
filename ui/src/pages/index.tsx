@@ -77,7 +77,7 @@ export default function Home() {
     };
   }, []);
 
-  const handleHostnameSubmit = (inputHostname) => {
+  const handleHostnameSubmit = (inputHostname: string) => {
     setHostname(inputHostname);
     localStorage.setItem("hostname", inputHostname);
   };
