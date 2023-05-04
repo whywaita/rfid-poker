@@ -52,7 +52,6 @@ func calcEquity(stored []Stored) ([]Stored, error) {
 }
 
 func AddPlayer(p poker.Player) ([]Stored, error) {
-	log.Println("AddPlayer", p)
 	sort.SliceStable(p.Hand, func(i, j int) bool {
 		return p.Hand[i].Rank < p.Hand[j].Rank
 	})

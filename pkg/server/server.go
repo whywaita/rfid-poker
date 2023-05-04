@@ -10,7 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/whywaita/poker-go"
+	"github.com/whywaita/rfid-poker/pkg/config"
 	"github.com/whywaita/rfid-poker/pkg/playercards"
 	"github.com/whywaita/rfid-poker/pkg/reader"
 	"golang.org/x/net/websocket"
@@ -26,7 +26,7 @@ func Run(ctx context.Context, configPath string) error {
 	deviceCh := make(chan reader.Data)
 	updatedCh := make(chan struct{})
 
-	cardConfigs, err := playercards.LoadConfig(configPath)
+	c, err := config.Load(configPath)
 	if err != nil {
 		return fmt.Errorf("playercards.LoadConfig(%s): %w", configPath, err)
 	}
@@ -39,19 +39,18 @@ func Run(ctx context.Context, configPath string) error {
 	}()
 	go func() {
 		log.Printf("Start loading cards...")
-		if err := playercards.LoadCardsWithChannel(*cardConfigs, 2, handCh, deviceCh); err != nil {
+		if err := playercards.LoadCardsWithChannel(*c, 2, handCh, deviceCh); err != nil {
 			log.Printf("playercards.LoadCardsWithChannel(ctx): %v", err)
 			return
 		}
 	}()
 	go func() {
-		if err := ReceiveData(handCh, updatedCh); err != nil {
+		if err := ReceiveData(handCh, updatedCh, *c); err != nil {
 			log.Printf("ReceiveData(): %v", err)
 			return
 		}
 	}()
 
-	//m := NewMux(handCh)
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.GET("/ws", func(c echo.Context) error {
@@ -78,29 +77,6 @@ type SendPlayer struct {
 type SendCard struct {
 	Suit string `json:"suit"`
 	Rank string `json:"rank"`
-}
-
-func ReceiveData(ch chan playercards.HandData, updateCh chan struct{}) error {
-	for v := range ch {
-		log.Printf("receive card in server: %s", v)
-		if len(v.Cards) != 2 {
-			log.Printf("invalid card: %s", v)
-			continue
-		}
-
-		_, err := AddPlayer(poker.Player{
-			Name:  v.SerialNumber, // TODO: convert serial number to name
-			Hand:  v.Cards,
-			Score: 0,
-		})
-		if err != nil {
-			log.Printf("AddPlayer(): %v", err)
-			continue
-		}
-		updateCh <- struct{}{}
-	}
-
-	return nil
 }
 
 func ws(c echo.Context, ch chan struct{}) error {

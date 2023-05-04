@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/whywaita/poker-go"
-
+	"github.com/whywaita/rfid-poker/pkg/config"
 	"github.com/whywaita/rfid-poker/pkg/reader"
 )
 
@@ -45,11 +45,11 @@ func ClearCache(serial string) {
 	cache.Delete(serial)
 }
 
-func LoadCardsWithChannel(cc CardConfig, number int, ch chan HandData, sourceCh chan reader.Data) error {
+func LoadCardsWithChannel(cc config.Config, number int, ch chan HandData, sourceCh chan reader.Data) error {
 	for {
 		in := <-sourceCh
 
-		card, err := LoadPlayerCard(in.UID, cc)
+		card, err := LoadPlayerCard(in.UID, cc.CardIDs)
 		if err != nil {
 			log.Printf("playercards.LoadPlayerCard(%s, cardConfigs): %v", hex.EncodeToString(in.UID), err)
 			continue
