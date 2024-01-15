@@ -45,15 +45,15 @@ function ConnectionModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClo
   if (!isOpen) return null;
   return (
       <div className="fixed inset-0 form-control items-center justify-center z-50">
-        <div className="bg-primary-content p-4 rounded">
+        <div className="bg-primary p-4 rounded">
           <label className="label">
-            <span className="label-text text-xl text-neutral">Endpoint (e.g. wss://192.0.2.1 )</span>
+            <span className="label-text text-xl text-primary-content">Endpoint (e.g. wss://192.0.2.1 )</span>
           </label>
           <input
               type="text"
               value={hostname}
               onChange={(e) => setHostname(e.target.value)}
-              className="input input-bordered p-3 text-primary-content"
+              className="input input-bordered p-3"
           />
           <button onClick={handleSubmit} className="btn btn-primary ml-2">
             Set
@@ -67,6 +67,27 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(true);
   const [hostname, setHostname] = useState("");
 
+  useEffect(() => {
+    const storedHostname = localStorage.getItem("hostname");
+    if (storedHostname) {
+      setHostname(storedHostname);
+      setModalOpen(false);
+    }
+    return () => {
+    };
+  }, []);
+
+  const handleHostnameSubmit = (inputHostname: string) => {
+    setHostname(inputHostname);
+    localStorage.setItem("hostname", inputHostname);
+  };
+
+  function removeHostname() {
+    localStorage.removeItem("hostname");
+    setHostname("");
+    setModalOpen(true);
+  }
+
   return (
     <main
       className={`flex w-full min-h-screen flex-col items-center justify-between p-2`}
@@ -74,11 +95,17 @@ export default function Home() {
       <ConnectionModal
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
-          onSubmit={(inputHostname) => setHostname(inputHostname)}
+          onSubmit={handleHostnameSubmit}
       />
-      <div className=" flex-1 z-10 w-full max-w-5xl items-center justify-between font-mono text-sm bg-base-100">
-        <div className="navbar navbar-center bg-base-100">
-          <a className="btn btn-ghost normal-case text-xl text-neutral-50">RFID Poker</a>
+      <div className="flex-1 z-10 w-full max-w-5xl items-center justify-between font-mono text-sm bg-base-100">
+        <div className="navbar navbar-center bg-base-100 w-full">
+          <a className="btn btn-ghost navbar-start normal-case text-xl text-primary-content">RFID Poker</a>
+          <div className="navbar-end">
+            <button
+                onClick={removeHostname}
+                className="btn btn-primary normal-case"
+            >Remove Endpoint</button>
+          </div>
         </div>
 
 

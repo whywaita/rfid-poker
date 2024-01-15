@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/bamchoh/pasori v0.0.0-20190321133732-ca188cfb16ba
-	github.com/goccy/go-yaml v1.11.0
+	github.com/goccy/go-yaml v1.11.2
 	github.com/google/gousb v1.1.2
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/whywaita/poker-go v0.0.0-20230424205220-146d7d56695f
