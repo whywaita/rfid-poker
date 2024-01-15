@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	CardIDs map[string]string `yaml:"card_ids"` // key: uid value: card
-	Players map[string]string `yaml:"players"`  // key: serial_number value: player_name
-	//MuckSerial string            `yaml:"muck_serial"`
+	CardIDs    map[string]string `yaml:"card_ids"` // key: uid value: card
+	Players    map[string]string `yaml:"players"`  // key: serial_number value: player_name
+	MuckSerial string            `yaml:"muck_serial"`
 }
 
 func Load(p string) (*Config, error) {

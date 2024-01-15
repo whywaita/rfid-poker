@@ -2,6 +2,7 @@ package server
 
 import (
 	"log"
+	"strings"
 
 	"github.com/whywaita/poker-go"
 	"github.com/whywaita/rfid-poker/pkg/config"
@@ -17,12 +18,12 @@ func ReceiveData(ch chan playercards.HandData, updateCh chan struct{}, cc config
 		}
 
 		switch {
-		//case strings.EqualFold(v.SerialNumber, cc.MuckSerial):
-		//	log.Printf("muck card: %s", v)
-		//	MuckPlayer(poker.Player{
-		//		Name: getPlayerName(v.SerialNumber, cc), // TODO: convert serial number to name
-		//		Hand: v.Cards,
-		//	})
+		case strings.EqualFold(v.SerialNumber, cc.MuckSerial):
+			log.Printf("muck card: %s", v)
+			MuckPlayer(poker.Player{
+				Name: getPlayerName(v.SerialNumber, cc), // TODO: convert serial number to name
+				Hand: v.Cards,
+			})
 		default:
 			log.Printf("AddPlayer(): %s", v)
 			_, err := AddPlayer(poker.Player{
