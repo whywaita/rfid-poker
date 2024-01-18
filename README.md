@@ -35,6 +35,10 @@ players:  ## The serial of PaSoRi for each player
   0000000: "Player 1"
   0000001: "Player 2"
 muck_serial: 0000002  ## The serial of PaSoRi for muck
+
+# Optional values
+
+http_mode: true  ## If true, the server will receive the cards from the HTTP request (default: false)
 ```
 
 ### Run the server
