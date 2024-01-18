@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"runtime"
 
+	"github.com/whywaita/rfid-poker/pkg/readerhttp"
+	"github.com/whywaita/rfid-poker/pkg/readerpasori"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/whywaita/rfid-poker/pkg/config"
@@ -31,12 +34,22 @@ func Run(ctx context.Context, configPath string) error {
 		return fmt.Errorf("playercards.LoadConfig(%s): %w", configPath, err)
 	}
 
-	go func() {
-		if err := reader.PollingDevices(deviceCh); err != nil {
-			log.Printf("reader.PollingDevices(): %v", err)
-			return
-		}
-	}()
+	if c.HTTPMode {
+		go func() {
+			if err := readerhttp.PollingHTTP(deviceCh); err != nil {
+				log.Printf("reader.PollingHTTP(): %v", err)
+				return
+			}
+		}()
+	} else {
+		go func() {
+			if err := readerpasori.PollingDevices(deviceCh); err != nil {
+				log.Printf("reader.PollingDevices(): %v", err)
+				return
+			}
+		}()
+	}
+
 	go func() {
 		log.Printf("Start loading cards...")
 		if err := playercards.LoadCardsWithChannel(*c, 2, handCh, deviceCh); err != nil {

@@ -12,6 +12,10 @@ type Config struct {
 	CardIDs    map[string]string `yaml:"card_ids"` // key: uid value: card
 	Players    map[string]string `yaml:"players"`  // key: serial_number value: player_name
 	MuckSerial string            `yaml:"muck_serial"`
+
+	// Optional
+
+	HTTPMode bool `yaml:"http_mode"` // if true, use http mode (default: false)
 }
 
 func Load(p string) (*Config, error) {
