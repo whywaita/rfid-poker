@@ -38,7 +38,7 @@ func run() error {
 		return fmt.Errorf("-host is required")
 	}
 	cards := strings.Split(*inCards, ",")
-	if len(cards) != 2 {
+	if len(cards) != 2 && len(cards) != 3 {
 		return fmt.Errorf("invalid cards: %s", *inCards)
 	}
 	u, err := url.Parse(*inHost)

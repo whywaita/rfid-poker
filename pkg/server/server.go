@@ -52,7 +52,7 @@ func Run(ctx context.Context, configPath string) error {
 
 	go func() {
 		log.Printf("Start loading cards...")
-		if err := playercards.LoadCardsWithChannel(*c, 2, handCh, deviceCh); err != nil {
+		if err := playercards.LoadCardsWithChannel(*c, handCh, deviceCh); err != nil {
 			log.Printf("playercards.LoadCardsWithChannel(ctx): %v", err)
 			return
 		}
@@ -79,6 +79,7 @@ func Run(ctx context.Context, configPath string) error {
 // Send is struct for SSE
 type Send struct {
 	Players []SendPlayer `json:"players"`
+	Board   []SendCard   `json:"board"`
 }
 
 type SendPlayer struct {
@@ -132,6 +133,7 @@ func sendPlayer(ws *websocket.Conn) error {
 func getSend() (*Send, error) {
 	send := &Send{}
 	data := GetStored()
+	board := GetBoard()
 
 	for _, s := range data {
 		hand := make([]SendCard, 0, len(s.Player.Hand))
@@ -147,6 +149,13 @@ func getSend() (*Send, error) {
 			Name:   s.Player.Name,
 			Hand:   hand,
 			Equity: s.Equity,
+		})
+	}
+
+	for _, card := range board {
+		send.Board = append(send.Board, SendCard{
+			Suit: card.Suit.String(),
+			Rank: card.Rank.String(),
 		})
 	}
 

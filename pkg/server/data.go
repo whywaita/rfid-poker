@@ -12,7 +12,7 @@ import (
 func ReceiveData(ch chan playercards.HandData, updateCh chan struct{}, cc config.Config) error {
 	for v := range ch {
 		log.Printf("receive card in server: %s", v)
-		if len(v.Cards) != 2 {
+		if len(v.Cards) != 2 && len(v.Cards) != 3 {
 			log.Printf("invalid card: %s", v)
 			continue
 		}
@@ -24,6 +24,12 @@ func ReceiveData(ch chan playercards.HandData, updateCh chan struct{}, cc config
 				Name: getPlayerName(v.SerialNumber, cc), // TODO: convert serial number to name
 				Hand: v.Cards,
 			})
+		case strings.EqualFold(v.SerialNumber, cc.BoardSerial):
+			log.Printf("AddBoard(): %s", v)
+			if err := AddBoard(v.Cards); err != nil {
+				log.Printf("Error AddBoard(): %v", err)
+				continue
+			}
 		default:
 			log.Printf("AddPlayer(): %s", v)
 			_, err := AddPlayer(poker.Player{

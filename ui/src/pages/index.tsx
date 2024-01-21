@@ -1,8 +1,11 @@
 import Player, {PlayerType} from "@/components/Player";
 import { useEffect, useState } from "react";
+import Board  from "@/components/Board";
+import {CardType} from "@/components/Cards";
 
-function Players({ hostname }:{hostname: string}) {
+function View({ hostname }:{hostname: string}) {
   const [players, setPlayers] = useState<PlayerType[]>([])
+  const [board, setBoard] = useState<CardType[]>([])
 
   useEffect(() => {
     if (!hostname) return;
@@ -12,6 +15,7 @@ function Players({ hostname }:{hostname: string}) {
       try {
         const newData = JSON.parse(event.data);
         setPlayers(newData.players);
+        setBoard(newData.board);
       } catch (e) {
         console.error("Error parsing JSON:", e);
       }
@@ -29,9 +33,11 @@ function Players({ hostname }:{hostname: string}) {
 
   return (
       <div className={"grid h-50"}>
+        <Board cards={board} />
+        <hr className={"flex-auto"}></hr>
         {players.map((player, index) => {
             return <Player player={player} key={index} />
-          })}
+        })}
       </div>
   )
 }
@@ -109,7 +115,7 @@ export default function Home() {
         </div>
 
 
-        <Players hostname={hostname} />
+        <View hostname={hostname} />
       </div>
     </main>
   )

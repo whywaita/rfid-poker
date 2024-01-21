@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/whywaita/poker-go"
@@ -38,6 +39,13 @@ func SaveCache(serial string, cards string) {
 		return
 	}
 
+	for _, v := range cached {
+		if cards == v {
+			// already cached
+			return
+		}
+	}
+
 	cache.Store(serial, append(cached, cards))
 }
 
@@ -45,7 +53,7 @@ func ClearCache(serial string) {
 	cache.Delete(serial)
 }
 
-func LoadCardsWithChannel(cc config.Config, number int, ch chan HandData, sourceCh chan reader.Data) error {
+func LoadCardsWithChannel(cc config.Config, ch chan HandData, sourceCh chan reader.Data) error {
 	for {
 		in := <-sourceCh
 
@@ -77,9 +85,9 @@ func LoadCardsWithChannel(cc config.Config, number int, ch chan HandData, source
 			}
 		}
 
-		if len(LoadCache(in.SerialNumber)) == number {
+		if len(LoadCache(in.SerialNumber)) == needNumber(cc, in.SerialNumber) {
 			l := LoadCache(in.SerialNumber)
-			log.Printf("loaded: %v", l)
+			log.Printf("loaded, will send to server: %v", l)
 			cards, err := ValidateCards(l)
 			if err != nil {
 				log.Printf("playercards.ValidateCards(cc, loaded): %v", err)
@@ -108,4 +116,15 @@ func ValidateCards(cards []string) ([]poker.Card, error) {
 	}
 
 	return validated, nil
+}
+
+func needNumber(cc config.Config, serial string) int {
+	if strings.EqualFold(cc.MuckSerial, serial) {
+		return 2
+	}
+	if strings.EqualFold(cc.BoardSerial, serial) {
+		return 3
+	}
+
+	return 2
 }

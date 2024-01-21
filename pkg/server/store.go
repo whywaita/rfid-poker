@@ -10,6 +10,7 @@ import (
 
 var (
 	storedPlayers = make([]Stored, 0)
+	storedBoard   = make([]poker.Card, 0)
 )
 
 type Stored struct {
@@ -22,21 +23,23 @@ func calcEquity(stored []Stored) ([]Stored, error) {
 		return stored, nil
 	}
 	players := make([]poker.Player, len(stored))
-	needUpdate := false
+	//needUpdate := false
 	for i, s := range stored {
-		if s.Equity == 0 {
-			needUpdate = true
-		}
+		//if s.Equity == 0 {
+		//	needUpdate = true
+		//}
 		players[i] = s.Player
 	}
-	if !needUpdate {
-		return stored, nil
-	}
+	//if !needUpdate {
+	//	return stored, nil
+	//}
 
-	log.Println("Start EvaluateEquityByMadeHand")
-	equities, err := poker.EvaluateEquityByMadeHand(players)
+	board := GetBoard()
+
+	log.Println("Start EvaluateEquityByMadeHandWithCommunity")
+	equities, err := poker.EvaluateEquityByMadeHandWithCommunity(players, board)
 	if err != nil {
-		return nil, fmt.Errorf("poker.EvaluateEquityByMadeHand: %w", err)
+		return nil, fmt.Errorf("poker.EvaluateEquityByMadeHandWithCommunity: %w", err)
 	}
 	log.Println("End EvaluateEquityByMadeHand")
 
@@ -97,6 +100,17 @@ func AddPlayer(p poker.Player) ([]Stored, error) {
 	return stored, nil
 }
 
+func AddBoard(cards []poker.Card) error {
+	storedBoard = cards
+	stored, err := calcEquity(storedPlayers)
+	if err != nil {
+		log.Printf("calcEquity: %v", err)
+		return fmt.Errorf("calcEquity: %w", err)
+	}
+	storedPlayers = stored
+	return nil
+}
+
 func isStoredCard(card poker.Card) bool {
 	for _, stored := range storedPlayers {
 		for _, storedCard := range stored.Player.Hand {
@@ -109,10 +123,6 @@ func isStoredCard(card poker.Card) bool {
 	return false
 }
 
-func ClearPlayers() {
-	storedPlayers = nil
-}
-
 func MuckPlayer(p poker.Player) {
 	for i, v := range storedPlayers {
 		if v.Player.Name == p.Name {
@@ -121,6 +131,15 @@ func MuckPlayer(p poker.Player) {
 	}
 }
 
+func ClearGame() {
+	storedPlayers = nil
+	storedBoard = nil
+}
+
 func GetStored() []Stored {
 	return storedPlayers
+}
+
+func GetBoard() []poker.Card {
+	return storedBoard
 }
