@@ -34,7 +34,6 @@ function View({ hostname }:{hostname: string}) {
   return (
       <div className={"grid h-50"}>
         <Board cards={board} />
-        <hr className={"flex-auto"}></hr>
         {players.map((player, index) => {
             return <Player player={player} key={index} />
         })}
