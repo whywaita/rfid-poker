@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/whywaita/rfid-poker/pkg/readerhttp"
 )
@@ -38,9 +39,9 @@ func run() error {
 		return fmt.Errorf("-host is required")
 	}
 	cards := strings.Split(*inCards, ",")
-	if len(cards) != 2 && len(cards) != 3 {
-		return fmt.Errorf("invalid cards: %s", *inCards)
-	}
+	// if len(cards) != 2 && len(cards) != 3 {
+	// 	return fmt.Errorf("invalid cards: %s", *inCards)
+	// }
 	u, err := url.Parse(*inHost)
 	if err != nil {
 		return fmt.Errorf("url.Parse(): %w", err)
@@ -69,12 +70,14 @@ func DoReq(ctx context.Context, serial string, cards []string, u *url.URL) error
 		if err := doReq(ctx, b, u); err != nil {
 			return fmt.Errorf("doReq(): %w", err)
 		}
+		time.Sleep(1 * time.Second)
 	}
 
 	return nil
 }
 
 func doReq(ctx context.Context, body []byte, u *url.URL) error {
+	log.Println("doReq()")
 	u = u.JoinPath(u.Path, "card")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewBuffer(body))
@@ -93,6 +96,7 @@ func doReq(ctx context.Context, body []byte, u *url.URL) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("invalid status code: %d", resp.StatusCode)
 	}
+	log.Println("resp.StatusCode: ", resp.StatusCode)
 
 	return nil
 }

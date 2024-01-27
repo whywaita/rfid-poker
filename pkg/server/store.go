@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log"
+	"slices"
 	"sort"
 
 	"github.com/whywaita/poker-go"
@@ -101,13 +102,21 @@ func AddPlayer(p poker.Player) ([]Stored, error) {
 }
 
 func AddBoard(cards []poker.Card) error {
-	storedBoard = cards
-	stored, err := calcEquity(storedPlayers)
-	if err != nil {
-		log.Printf("calcEquity: %v", err)
-		return fmt.Errorf("calcEquity: %w", err)
+	board, isUpdated := concatCards(GetBoard(), cards)
+	if len(board) > 5 {
+		return fmt.Errorf("board is already 5 cards")
 	}
-	storedPlayers = stored
+
+	storedBoard = board
+
+	if isUpdated {
+		stored, err := calcEquity(storedPlayers)
+		if err != nil {
+			log.Printf("calcEquity: %v", err)
+			return fmt.Errorf("calcEquity: %w", err)
+		}
+		storedPlayers = stored
+	}
 	return nil
 }
 
@@ -142,4 +151,22 @@ func GetStored() []Stored {
 
 func GetBoard() []poker.Card {
 	return storedBoard
+}
+
+// concatCards concat already stored cards and new cards (remove duplicated)
+func concatCards(already, newCards []poker.Card) ([]poker.Card, bool) {
+	concat := make([]poker.Card, 0)
+	concat = append(concat, already...)
+
+	isUpdated := false
+
+	for _, newCard := range newCards {
+		if slices.Contains(concat, newCard) {
+			continue
+		}
+		concat = append(concat, newCard)
+		isUpdated = true
+	}
+
+	return concat, isUpdated
 }
