@@ -1,6 +1,6 @@
 module github.com/whywaita/rfid-poker
 
-go 1.20
+go 1.21
 
 require (
 	github.com/bamchoh/pasori v0.0.0-20190321133732-ca188cfb16ba
