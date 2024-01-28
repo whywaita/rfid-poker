@@ -24,16 +24,9 @@ func calcEquity(stored []Stored) ([]Stored, error) {
 		return stored, nil
 	}
 	players := make([]poker.Player, len(stored))
-	//needUpdate := false
 	for i, s := range stored {
-		//if s.Equity == 0 {
-		//	needUpdate = true
-		//}
 		players[i] = s.Player
 	}
-	//if !needUpdate {
-	//	return stored, nil
-	//}
 
 	board := GetBoard()
 
