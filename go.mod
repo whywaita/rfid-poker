@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/bamchoh/pasori v0.0.0-20190321133732-ca188cfb16ba
-	github.com/goccy/go-yaml v1.11.2
+	github.com/goccy/go-yaml v1.11.3
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/google/gousb v1.1.2
 	github.com/labstack/echo/v4 v4.11.4
