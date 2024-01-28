@@ -42,7 +42,7 @@ const Card = ({ suit, rank }:{suit: Suit, rank: Rank}) => {
     const contentClass = `flex-1 text-center text-5xl mt-3 ${color(suit) === 'red-600' ? 'text-red-600' : 'text-black'} text-opacity-100`
 
     return (
-        <div className={"flex box-boarder bg-white h-20 w-1/4 p-1 mx-3 px-3 boarder-1 shadow-md"}>
+        <div className={"flex box-boarder bg-white h-20 w-1/4 p-1 mx-1 px-3 boarder-1 shadow-md"}>
             <p className={contentClass}>{ContentSuit(suit)}</p>
             <p className={contentClass}>{ContentRank(rank)}</p>
         </div>

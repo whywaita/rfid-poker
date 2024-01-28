@@ -66,6 +66,28 @@ The body of the message is as follows:
 
 ```json
 {
+  "boards": [
+    {
+      "rank": "A",
+      "suit": "hearts"
+    },
+    {
+      "rank": "K",
+      "suit": "hearts"
+    },
+    {
+      "rank": "Q",
+      "suit": "hearts"
+    },
+    {
+      "rank": "J",
+      "suit": "hearts"
+    },
+    {
+      "rank": "T",
+      "suit": "hearts"
+    }
+  ],
   "players": [
     {
       "name": "Player 1",
