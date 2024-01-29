@@ -165,7 +165,7 @@ func AddBoard(ctx context.Context, q *query.Queries, cards []poker.Card) error {
 
 	board, needInsert, isUpdated := concatCards(nowBoard, cards)
 	if len(board) > 5 {
-		return fmt.Errorf("board is already 5 cards")
+		return fmt.Errorf("concatenated length is %d, it is over five", len(board))
 	}
 
 	if len(needInsert) > 0 {
