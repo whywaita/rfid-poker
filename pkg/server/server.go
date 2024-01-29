@@ -2,21 +2,32 @@ package server
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
+	"strconv"
+	"time"
 
-	"github.com/whywaita/rfid-poker/pkg/readerhttp"
-	"github.com/whywaita/rfid-poker/pkg/readerpasori"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/whywaita/rfid-poker/pkg/config"
 	"github.com/whywaita/rfid-poker/pkg/playercards"
+	"github.com/whywaita/rfid-poker/pkg/query"
 	"github.com/whywaita/rfid-poker/pkg/reader"
-	"golang.org/x/net/websocket"
+	"github.com/whywaita/rfid-poker/pkg/readerhttp"
+	"github.com/whywaita/rfid-poker/pkg/readerpasori"
 )
 
 func Run(ctx context.Context, configPath string) error {
@@ -34,6 +45,22 @@ func Run(ctx context.Context, configPath string) error {
 		return fmt.Errorf("playercards.LoadConfig(%s): %w", configPath, err)
 	}
 
+	conn, err := connectSQLite()
+	if err != nil {
+		return fmt.Errorf("connectSQLite(): %w", err)
+	}
+	if err := initializeDatabase(ctx, conn, *c); err != nil {
+		return fmt.Errorf("initializeDatabase(): %w", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("conn.Close(): %v", err)
+		}
+		if err := os.Remove("./instance.db"); err != nil {
+			log.Printf("os.Remove(): %v", err)
+		}
+	}()
+
 	if c.HTTPMode {
 		go func() {
 			if err := readerhttp.PollingHTTP(deviceCh); err != nil {
@@ -49,7 +76,6 @@ func Run(ctx context.Context, configPath string) error {
 			}
 		}()
 	}
-
 	go func() {
 		log.Printf("Start loading cards...")
 		if err := playercards.LoadCardsWithChannel(*c, handCh, deviceCh); err != nil {
@@ -58,7 +84,7 @@ func Run(ctx context.Context, configPath string) error {
 		}
 	}()
 	go func() {
-		if err := ReceiveData(handCh, updatedCh, *c); err != nil {
+		if err := ReceiveData(ctx, conn, handCh, updatedCh, *c); err != nil {
 			log.Printf("ReceiveData(): %v", err)
 			return
 		}
@@ -67,97 +93,74 @@ func Run(ctx context.Context, configPath string) error {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.GET("/ws", func(c echo.Context) error {
-		return ws(c, updatedCh)
+		return ws(c, conn, updatedCh)
 	})
-	if err := e.Start(":8080"); err != nil {
-		return fmt.Errorf("failed to start server: %w", err)
+	go func() {
+		if err := e.Start(":8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("failed to start server: %v", err)
+			return
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
 	}
 
 	return nil
 }
 
-// Send is struct for SSE
-type Send struct {
-	Players []SendPlayer `json:"players"`
-	Board   []SendCard   `json:"board"`
-}
+func connectSQLite() (*sql.DB, error) {
+	instanceFilePath := "./instance.db"
 
-type SendPlayer struct {
-	Name   string     `json:"name"`
-	Hand   []SendCard `json:"hand"`
-	Equity float64    `json:"equity"`
-}
-
-type SendCard struct {
-	Suit string `json:"suit"`
-	Rank string `json:"rank"`
-}
-
-func ws(c echo.Context, ch chan struct{}) error {
-	websocket.Handler(func(ws *websocket.Conn) {
-		defer ws.Close()
-
-		if err := sendPlayer(ws); err != nil {
-			c.Logger().Errorf(err.Error())
+	if _, err := os.Stat(instanceFilePath); os.IsNotExist(err) {
+		log.Printf("instance.db is not exist. create new instance.db")
+		if _, err := os.Create(instanceFilePath); err != nil {
+			return nil, fmt.Errorf("os.Create(%s): %w", instanceFilePath, err)
 		}
+	}
 
-		for {
-			<-ch
-			err := sendPlayer(ws)
-			if err != nil {
-				c.Logger().Errorf(err.Error())
-			}
-		}
-	}).ServeHTTP(c.Response(), c.Request())
-	return nil
-}
-
-func sendPlayer(ws *websocket.Conn) error {
-	send, err := getSend()
+	conn, err := sql.Open("sqlite3", instanceFilePath)
 	if err != nil {
-		return fmt.Errorf("getSend(): %w", err)
+		return nil, fmt.Errorf("sql.Open(): %w", err)
 	}
 
-	b, err := json.Marshal(send)
-	if err != nil {
-		return fmt.Errorf("json.Marshal(%v): %w", send, err)
-	}
-
-	log.Println("Send: ", string(b))
-	if err := websocket.Message.Send(ws, string(b)); err != nil {
-		return fmt.Errorf("websocket.Message.Send(): %w", err)
-	}
-	return nil
+	return conn, nil
 }
 
-func getSend() (*Send, error) {
-	send := &Send{}
-	data := GetStored()
-	board := GetBoard()
+func initializeDatabase(ctx context.Context, conn *sql.DB, cc config.Config) error {
+	db := query.New(conn)
 
-	for _, s := range data {
-		hand := make([]SendCard, 0, len(s.Player.Hand))
+	driver, err := sqlite3.WithInstance(conn, &sqlite3.Config{})
+	if err != nil {
+		return fmt.Errorf("sqlite3.WithInstance(): %w", err)
+	}
 
-		for _, card := range s.Player.Hand {
-			hand = append(hand, SendCard{
-				Suit: card.Suit.String(),
-				Rank: card.Rank.String(),
-			})
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://_sqlc/migration",
+		"sqlite3",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("migrate.NewWithDatabaseInstance(): %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("m.Up(): %w", err)
+	}
+
+	for serial, name := range cc.Players {
+		if _, err := db.AddPlayer(ctx, query.AddPlayerParams{
+			Name:   name,
+			Serial: strconv.Itoa(serial),
+		}); err != nil {
+			return fmt.Errorf("db.AddPlayer(): %w", err)
 		}
-
-		send.Players = append(send.Players, SendPlayer{
-			Name:   s.Player.Name,
-			Hand:   hand,
-			Equity: s.Equity,
-		})
 	}
 
-	for _, card := range board {
-		send.Board = append(send.Board, SendCard{
-			Suit: card.Suit.String(),
-			Rank: card.Rank.String(),
-		})
-	}
-
-	return send, nil
+	return nil
 }

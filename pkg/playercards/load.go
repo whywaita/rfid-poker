@@ -128,7 +128,7 @@ func ValidateCards(cards []string) ([]poker.Card, error) {
 type TypeSerial int
 
 const (
-	TypeSerialUnknownTypeSerial = iota
+	TypeSerialUnknown = iota
 	TypeSerialMuck
 	TypeSerialBoard
 	TypeSerialPlayer
