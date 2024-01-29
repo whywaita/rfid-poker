@@ -218,6 +218,10 @@ func MuckPlayer(ctx context.Context, q *query.Queries, cards []poker.Card) error
 		return fmt.Errorf("q.MuckHand(): %w", err)
 	}
 
+	if err := calcEquity(ctx, q); err != nil {
+		return fmt.Errorf("calcEquity: %w", err)
+	}
+
 	return nil
 }
 

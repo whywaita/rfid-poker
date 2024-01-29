@@ -21,9 +21,10 @@ SELECT
     card_b.rank AS card_b_rank,
     card_b.is_board AS card_b_is_board
 FROM player
-         INNER JOIN hand ON player.id = hand.player_id
-         INNER JOIN card AS card_a ON hand.card_a_id = card_a.id
-         INNER JOIN card AS card_b ON hand.card_b_id = card_b.id;
+INNER JOIN hand ON player.id = hand.player_id
+INNER JOIN card AS card_a ON hand.card_a_id = card_a.id
+INNER JOIN card AS card_b ON hand.card_b_id = card_b.id
+WHERE is_muck = false;
 
 -- name: AddPlayer :one
 INSERT INTO player (name, serial)
