@@ -49,7 +49,7 @@ func calcEquity(ctx context.Context, q *query.Queries) error {
 			IsBoard: p.CardBIsBoard,
 		}.ToPokerGo()
 		if err != nil {
-			return fmt.Errorf("cardA.ToPokerGo(): %w", err)
+			return fmt.Errorf("cardB.ToPokerGo(): %w", err)
 		}
 
 		players = append(players, poker.Player{
