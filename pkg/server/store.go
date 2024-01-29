@@ -97,6 +97,11 @@ func AddPlayer(ctx context.Context, conn *sql.DB, input []poker.Card, serial str
 	if err != nil {
 		return fmt.Errorf("conn.BeginTx(): %w", err)
 	}
+	defer func() {
+		if r := recover(); r != nil || err != nil {
+			tx.Rollback()
+		}
+	}()
 	qWithTx := query.New(tx)
 
 	sort.SliceStable(input, func(i, j int) bool {
