@@ -32,9 +32,12 @@ card_ids:  ## UID of NEC card
   04101b9a776b85000000: Kc
   ...
 players:  ## The serial of PaSoRi for each player
-  0000000: "Player 1"
-  0000001: "Player 2"
+  - name: "Player 1"
+    serial: 0000000
+  - name: "Player 2"
+    serial: 0000001
 muck_serial: 0000002  ## The serial of PaSoRi for muck
+board_serial: 0000003
 
 # Optional values
 
