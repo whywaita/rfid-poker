@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -153,10 +152,10 @@ func initializeDatabase(ctx context.Context, conn *sql.DB, cc config.Config) err
 		return fmt.Errorf("m.Up(): %w", err)
 	}
 
-	for serial, name := range cc.Players {
+	for _, player := range cc.Players {
 		if _, err := db.AddPlayer(ctx, query.AddPlayerParams{
-			Name:   name,
-			Serial: strconv.Itoa(serial),
+			Name:   player.Name,
+			Serial: player.Serial,
 		}); err != nil {
 			return fmt.Errorf("db.AddPlayer(): %w", err)
 		}

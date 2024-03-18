@@ -1,5 +1,5 @@
 -- name: GetBoard :many
-SELECT * FROM card
+SELECT id, suit, rank, is_board FROM card
 WHERE is_board = true;
 
 -- name: AddCardToBoard :exec
