@@ -157,31 +157,54 @@ func AddPlayer(ctx context.Context, conn *sql.DB, input []poker.Card, serial str
 	return nil
 }
 
-func AddBoard(ctx context.Context, q *query.Queries, cards []poker.Card) error {
-	nowBoard, err := GetBoard(ctx, q)
+var (
+	ErrWillGoToNextGame = errors.New("will go to next game")
+)
+
+func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
+		return fmt.Errorf("conn.BeginTx(): %w", err)
+	}
+	defer func() {
+		if r := recover(); r != nil || err != nil {
+			tx.Rollback()
+		}
+	}()
+	qWithTx := query.New(tx)
+
+	nowBoard, err := GetBoardAll(ctx, qWithTx)
+	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("GetBoard(): %w", err)
 	}
 
 	board, needInsert, isUpdated := concatCards(nowBoard, cards)
-	if len(board) > 5 {
-		return fmt.Errorf("concatenated length is %d, it is over five", len(board))
+	if len(board) > 6 {
+		// load 7 cards. will go to next game.
+		tx.Rollback()
+		return ErrWillGoToNextGame
 	}
 
 	if len(needInsert) > 0 {
 		for _, c := range needInsert {
-			err := q.AddCardToBoard(ctx, query.AddCardToBoardParams{
+			err := qWithTx.AddCardToBoard(ctx, query.AddCardToBoardParams{
 				Suit: c.Suit.String(),
 				Rank: c.Rank.String(),
 			})
 			if err != nil {
+				tx.Rollback()
 				return fmt.Errorf("query.AddCardToBoard(): %w", err)
 			}
 		}
 	}
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("tx.Commit(): %w", err)
+	}
+
 	if isUpdated {
-		if err := calcEquity(ctx, q); err != nil {
+		if err := calcEquity(ctx, query.New(conn)); err != nil {
 			log.Printf("calcEquity: %v", err)
 			return fmt.Errorf("calcEquity: %w", err)
 		}
@@ -203,27 +226,45 @@ func isStoredCard(ctx context.Context, q *query.Queries, card poker.Card) (bool,
 	return true, nil
 }
 
-func MuckPlayer(ctx context.Context, q *query.Queries, cards []poker.Card) error {
-	c, err := q.GetCardByRankSuit(ctx, query.GetCardByRankSuitParams{
+func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("conn.BeginTx(): %w", err)
+	}
+	defer func() {
+		if r := recover(); r != nil || err != nil {
+			tx.Rollback()
+		}
+	}()
+	qWithTx := query.New(tx)
+
+	c, err := qWithTx.GetCardByRankSuit(ctx, query.GetCardByRankSuitParams{
 		Rank: cards[0].Rank.String(),
 		Suit: cards[0].Suit.String(),
 	})
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("q.GetCardByRankSuit(): %w", err)
 	}
-	hand, err := q.GetHandByCardId(ctx, query.GetHandByCardIdParams{
+	hand, err := qWithTx.GetHandByCardId(ctx, query.GetHandByCardIdParams{
 		CardAID: c.ID,
 		CardBID: c.ID,
 	})
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("q.GetHandByCardId(): %w", err)
 	}
 
-	if err := q.MuckHand(ctx, hand.ID); err != nil {
+	if err := qWithTx.MuckHand(ctx, hand.ID); err != nil {
+		tx.Rollback()
 		return fmt.Errorf("q.MuckHand(): %w", err)
 	}
 
-	if err := calcEquity(ctx, q); err != nil {
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("tx.Commit(): %w", err)
+	}
+
+	if err := calcEquity(ctx, query.New(conn)); err != nil {
 		return fmt.Errorf("calcEquity: %w", err)
 	}
 
@@ -233,8 +274,12 @@ func MuckPlayer(ctx context.Context, q *query.Queries, cards []poker.Card) error
 func ClearGame(ctx context.Context, conn *sql.DB) error {
 	db := query.New(conn)
 
-	if err := db.ResetGame(ctx); err != nil {
-		return fmt.Errorf("db.ResetGame(): %w", err)
+	if err := db.DeleteHandAll(ctx); err != nil {
+		return fmt.Errorf("db.DeleteHandAll(): %w", err)
+	}
+
+	if err := db.DeleteCardAll(ctx); err != nil {
+		return fmt.Errorf("db.DeleteCardAll(): %w", err)
 	}
 
 	return nil
@@ -270,10 +315,36 @@ func GetStored(ctx context.Context, q *query.Queries) ([]Stored, error) {
 	return stored, nil
 }
 
+func GetBoardAll(ctx context.Context, q *query.Queries) ([]poker.Card, error) {
+	cards, err := q.GetBoard(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("db.GetBoard(): %w", err)
+	}
+
+	var board []poker.Card
+	for _, c := range cards {
+		card, err := c.ToPokerGo()
+		if err != nil {
+			return nil, fmt.Errorf("card.ToPokerGo(): %w", err)
+		}
+		board = append(board, *card)
+	}
+
+	return board, nil
+}
+
 func GetBoard(ctx context.Context, q *query.Queries) ([]poker.Card, error) {
 	cards, err := q.GetBoard(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("db.GetBoard(): %w", err)
+	}
+
+	// use only 5 cards order by oldest
+	sort.SliceStable(cards, func(i, j int) bool {
+		return cards[i].ID < cards[j].ID
+	})
+	if len(cards) > 5 {
+		cards = cards[:5]
 	}
 
 	var board []poker.Card

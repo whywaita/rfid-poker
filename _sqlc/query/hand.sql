@@ -22,3 +22,6 @@ UPDATE hand SET equity = ? WHERE id = ?;
 
 -- name: MuckHand :exec
 UPDATE hand SET is_muck = true WHERE id = ?;
+
+-- name: DeleteHandAll :exec
+DELETE FROM hand;

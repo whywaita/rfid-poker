@@ -17,9 +17,9 @@ type Card struct {
 
 type Hand struct {
 	ID       int64
-	PlayerID int64
-	CardAID  int64
-	CardBID  int64
+	PlayerID interface{}
+	CardAID  interface{}
+	CardBID  interface{}
 	Equity   sql.NullFloat64
 	IsMuck   bool
 }

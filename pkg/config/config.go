@@ -10,13 +10,18 @@ import (
 
 type Config struct {
 	CardIDs     map[string]string `yaml:"card_ids"` // key: uid value: card
-	Players     map[int]string    `yaml:"players"`  // key: serial_number value: player_name
+	Players     []Player          `yaml:"players"`
 	MuckSerial  string            `yaml:"muck_serial"`
 	BoardSerial string            `yaml:"board_serial"`
 
 	// Optional
 
 	HTTPMode bool `yaml:"http_mode"` // if true, use http mode (default: false)
+}
+
+type Player struct {
+	Serial string `yaml:"serial"`
+	Name   string `yaml:"name"`
 }
 
 func Load(p string) (*Config, error) {

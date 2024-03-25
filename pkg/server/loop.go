@@ -3,11 +3,10 @@ package server
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
-
-	"github.com/whywaita/rfid-poker/pkg/query"
 
 	"github.com/whywaita/rfid-poker/pkg/config"
 	"github.com/whywaita/rfid-poker/pkg/playercards"
@@ -34,17 +33,24 @@ func process(ctx context.Context, conn *sql.DB, v playercards.HandData, updateCh
 		return fmt.Errorf("invalid card: %s", v)
 	}
 
-	q := query.New(conn)
-
 	switch {
 	case strings.EqualFold(v.SerialNumber, cc.MuckSerial):
 		log.Printf("MuckPlayer(): %s", v)
-		if err := MuckPlayer(ctx, q, v.Cards); err != nil {
+		if err := MuckPlayer(ctx, conn, v.Cards); err != nil {
 			return fmt.Errorf("MuckPlayer(): %w", err)
 		}
 	case strings.EqualFold(v.SerialNumber, cc.BoardSerial):
 		log.Printf("AddBoard(): %s", v)
-		if err := AddBoard(ctx, q, v.Cards); err != nil {
+		if err := AddBoard(ctx, conn, v.Cards); err != nil {
+			if errors.Is(err, ErrWillGoToNextGame) {
+				log.Printf("will go to next game")
+				if err := ClearGame(ctx, conn); err != nil {
+					return fmt.Errorf("ClearGame(): %w", err)
+				}
+				log.Printf("cleared!")
+				return nil
+			}
+
 			return fmt.Errorf("AddBoard(): %w", err)
 		}
 	default:

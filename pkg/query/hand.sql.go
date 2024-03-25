@@ -15,13 +15,22 @@ INSERT INTO hand (player_id, card_a_id, card_b_id, is_muck) VALUES (?, ?, ?, fal
 `
 
 type AddHandParams struct {
-	PlayerID int64
-	CardAID  int64
-	CardBID  int64
+	PlayerID interface{}
+	CardAID  interface{}
+	CardBID  interface{}
 }
 
 func (q *Queries) AddHand(ctx context.Context, arg AddHandParams) error {
 	_, err := q.db.ExecContext(ctx, addHand, arg.PlayerID, arg.CardAID, arg.CardBID)
+	return err
+}
+
+const deleteHandAll = `-- name: DeleteHandAll :exec
+DELETE FROM hand
+`
+
+func (q *Queries) DeleteHandAll(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteHandAll)
 	return err
 }
 
@@ -30,15 +39,15 @@ SELECT id, player_id, card_a_id, card_b_id, equity FROM hand WHERE card_a_id = ?
 `
 
 type GetHandByCardIdParams struct {
-	CardAID int64
-	CardBID int64
+	CardAID interface{}
+	CardBID interface{}
 }
 
 type GetHandByCardIdRow struct {
 	ID       int64
-	PlayerID int64
-	CardAID  int64
-	CardBID  int64
+	PlayerID interface{}
+	CardAID  interface{}
+	CardBID  interface{}
 	Equity   sql.NullFloat64
 }
 
@@ -68,9 +77,9 @@ WHERE player.serial = ?
 
 type GetHandBySerialRow struct {
 	HandID   int64
-	PlayerID int64
-	CardAID  int64
-	CardBID  int64
+	PlayerID interface{}
+	CardAID  interface{}
+	CardBID  interface{}
 	Equity   sql.NullFloat64
 }
 
@@ -93,9 +102,9 @@ SELECT id, player_id, card_a_id, card_b_id, equity FROM hand WHERE is_muck = fal
 
 type GetHandNotMuckedRow struct {
 	ID       int64
-	PlayerID int64
-	CardAID  int64
-	CardBID  int64
+	PlayerID interface{}
+	CardAID  interface{}
+	CardBID  interface{}
 	Equity   sql.NullFloat64
 }
 

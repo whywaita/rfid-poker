@@ -1,9 +1,9 @@
 -- name: GetPlayer :one
-SELECT * FROM player
+SELECT id, name, serial FROM player
 WHERE id = ? LIMIT 1;
 
 -- name: GetPlayerBySerial :one
-SELECT * FROM player
+SELECT id, name, serial FROM player
 WHERE serial = ? LIMIT 1;
 
 -- name: GetPlayersWithHand :many
