@@ -25,10 +25,10 @@ function View({ hostname }:{hostname: string}) {
     }
     ws.onerror = (error) => {
       console.error("Websocket error:", error);
-      const errorEvent = error as ErrorEvent;
       const sanitizedHostname = DOMPurify.sanitize(hostname);
-      const errorMessage = errorEvent.error ? errorEvent.error.message : "Unknown error: (hostname: "+sanitizedHostname+" )";
-      console.error(errorMessage);
+      const errorMessage = error instanceof ErrorEvent && error.error
+        ? `${error.error.message} (Hostname: ${sanitizedHostname})`
+        : `Failed to connect to WebSocket at ${sanitizedHostname}`;
       setWSError(errorMessage);
     }
 
