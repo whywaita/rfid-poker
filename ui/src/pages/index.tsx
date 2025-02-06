@@ -3,9 +3,12 @@ import { useEffect, useState } from "react";
 import Board  from "@/components/Board";
 import {CardType} from "@/components/Cards";
 
+import DOMPurify from 'dompurify';
+
 function View({ hostname }:{hostname: string}) {
   const [players, setPlayers] = useState<PlayerType[]>([])
   const [board, setBoard] = useState<CardType[]>([])
+  const [wsError, setWSError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hostname) return;
@@ -22,12 +25,25 @@ function View({ hostname }:{hostname: string}) {
     }
     ws.onerror = (error) => {
       console.error("Websocket error:", error);
+      const errorEvent = error as ErrorEvent;
+      const sanitizedHostname = DOMPurify.sanitize(hostname);
+      const errorMessage = errorEvent.error ? errorEvent.error.message : "Unknown error: (hostname: "+sanitizedHostname+" )";
+      console.error(errorMessage);
+      setWSError(errorMessage);
     }
 
     return () => {
       ws.close()
     }
   }, [hostname]);
+
+  if (wsError) {
+    return <div role="alert" className="alert alert-error">
+      <span>
+        {wsError}
+      </span>
+    </div>
+  }
 
   if (!players) { return <div></div> }
 
@@ -49,7 +65,7 @@ function ConnectionModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClo
   };
   if (!isOpen) return null;
   return (
-      <div className="fixed inset-0 form-control items-center justify-center z-50">
+      <div className="fixed inset-0 form-control items-center justify-center z-50 rounded">
         <div className="bg-primary p-4 rounded">
           <label className="label">
             <span className="label-text text-xl text-primary-content">Endpoint (e.g. wss://192.0.2.1 )</span>
@@ -104,7 +120,7 @@ export default function Home() {
       />
       <div className="flex-1 z-10 w-full max-w-5xl items-center justify-between font-mono text-sm bg-base-100">
         <div className="navbar navbar-center bg-base-100 w-full">
-          <a className="btn btn-ghost navbar-start normal-case text-xl text-primary-content">RFID Poker</a>
+          <a className="btn btn-ghost navbar-start normal-case text-xl text-accent-content">RFID Poker</a>
           <div className="navbar-end">
             <button
                 onClick={removeHostname}
