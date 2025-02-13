@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/jinzhu/configor"
+
+	"github.com/whywaita/rfid-poker/pkg/config"
 	"github.com/whywaita/rfid-poker/pkg/server"
 )
 
@@ -17,7 +20,9 @@ func main() {
 func run() error {
 	ctx := context.Background()
 
-	if err := server.Run(ctx, "./config.yaml"); err != nil {
+	configor.Load(&config.Conf, "config.yaml")
+
+	if err := server.Run(ctx); err != nil {
 		return fmt.Errorf("server.Run(ctx): %w", err)
 	}
 	return nil

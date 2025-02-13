@@ -1,16 +1,17 @@
 -- name: GetPlayer :one
-SELECT id, name, serial FROM player
+SELECT id, name FROM player
 WHERE id = ? LIMIT 1;
 
 -- name: GetPlayerBySerial :one
-SELECT id, name, serial FROM player
-WHERE serial = ? LIMIT 1;
+SELECT player.id, player.name
+FROM player
+JOIN antenna ON player.id = antenna.player_id
+WHERE antenna.serial = ?;
 
 -- name: GetPlayersWithHand :many
 SELECT
     player.id,
     player.name,
-    player.serial,
     hand.id AS hand_id,
     hand.equity,
     hand.is_muck,
@@ -21,12 +22,13 @@ SELECT
     card_b.rank AS card_b_rank,
     card_b.is_board AS card_b_is_board
 FROM player
-INNER JOIN hand ON player.id = hand.player_id
-INNER JOIN card AS card_a ON hand.card_a_id = card_a.id
-INNER JOIN card AS card_b ON hand.card_b_id = card_b.id
-WHERE is_muck = false;
+         INNER JOIN hand ON player.id = hand.player_id
+         INNER JOIN card AS card_a ON hand.id = card_a.hand_id
+         INNER JOIN card AS card_b ON hand.id = card_b.hand_id
+WHERE hand.is_muck = false
+  AND card_a.id < card_b.id;
 
 -- name: AddPlayer :one
-INSERT INTO player (name, serial)
-VALUES (?, ?)
+INSERT INTO player (name)
+VALUES (?)
 RETURNING *;

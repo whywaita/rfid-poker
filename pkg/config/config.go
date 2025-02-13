@@ -1,43 +1,9 @@
 package config
 
-import (
-	"fmt"
-	"log"
-	"os"
-
-	"github.com/goccy/go-yaml"
-)
+var Conf Config
 
 type Config struct {
-	CardIDs     map[string]string `yaml:"card_ids"` // key: uid value: card
-	Players     []Player          `yaml:"players"`
-	MuckSerial  string            `yaml:"muck_serial"`
-	BoardSerial string            `yaml:"board_serial"`
+	CardIDs map[string]string `required:"true" yaml:"card_ids"` // key: uid value: card
 
-	// Optional
-
-	HTTPMode bool `yaml:"http_mode"` // if true, use http mode (default: false)
-}
-
-type Player struct {
-	Serial string `yaml:"serial"`
-	Name   string `yaml:"name"`
-}
-
-func Load(p string) (*Config, error) {
-	b, err := os.ReadFile(p)
-	if err != nil {
-		return nil, fmt.Errorf("os.ReadFile(%s): %w", p, err)
-	}
-
-	var cc Config
-	if err := yaml.Unmarshal(b, &cc); err != nil {
-		return nil, fmt.Errorf("yaml.Unmarshal(); %w", err)
-	}
-
-	for k, v := range cc.Players {
-		log.Printf("loaded player key %v value %s", k, v)
-	}
-
-	return &cc, nil
+	HTTPMode bool `default:"true"`
 }
