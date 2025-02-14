@@ -1,6 +1,7 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include <M5Core2.h>
+#include "SD.h"
+#include <M5Unified.h>
 
 String JsonData;
 int sdstat = 0;
@@ -11,12 +12,12 @@ std::tuple<String, String> setupNetwork() {
     M5.Lcd.setCursor(0, 51);
 
     // Connect to WiFi
-    StaticJsonDocument<192> n_jsondata;
-    if (!SD.begin()) {
-        M5.Lcd.println("Card failed, or not present");
-        Serial.println("Card failed, or not present");
-        while (1);
+    StaticJsonDocument<512> n_jsondata;
+    while (SD.begin(GPIO_NUM_4) != true) {
+        M5.Lcd.println("SD Card Mount Failed");
+        delay(500);
     }
+
     Serial.println("microSD card initialized.");
 
     if (SD.exists("/SSID.txt")) {

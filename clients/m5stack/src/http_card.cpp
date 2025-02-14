@@ -1,36 +1,6 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-struct PostCardParams {
-    String macAddr;
-    String uid;
-    int pair_id;
-    String i_host;
-};
-
-void postCardTask(void *pvParameters);
-void postCard(String macAddr, String uid, int pair_id, String i_host);
-
-void postCardAsync(String macAddr, String uid, int pair_id, String i_host) {
-    PostCardParams *params = new PostCardParams{macAddr, uid, pair_id, i_host};
-    
-    xTaskCreate(
-      postCardTask,
-      "PostCardTask",
-      8192,
-      params,
-      1,
-      NULL
-    );
-  }
-
-void postCardTask(void *pvParameters) {
-    PostCardParams *params = (PostCardParams *)pvParameters;
-    postCard(params->macAddr, params->uid, params->pair_id, params->i_host);
-    delete params;
-    vTaskDelete(NULL);
-}
-
 void postCard(String macAddr, String uid, int pair_id, String i_host) {
     StaticJsonDocument<256> json_request;
     char buffer[255];

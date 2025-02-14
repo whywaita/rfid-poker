@@ -2,7 +2,7 @@
 #include <WiFi.h>
 #include <tuple>
 
-#include <M5Core2.h>
+#include <M5Unified.h>
 
 void readAllRfid(char macAddr[], String i_host);
 void setupRfId();
@@ -16,7 +16,7 @@ String i_host;
 void setup() {    
     M5.begin();
     M5.Lcd.fillScreen(BLACK);
-    M5.lcd.setTextSize(2);
+    M5.Lcd.setTextSize(2);
 
     // Setup Mac Address
     uint8_t mac[6];
@@ -25,7 +25,6 @@ void setup() {
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     M5.Lcd.setCursor(0, 0);
-    M5.Lcd.setTextSize(2);
     M5.Lcd.println("RFID Reader");
     M5.Lcd.printf("Mac: %s\n", macStr);
     M5.Lcd.printf("SSID: %s\n", "Not connected");
@@ -37,7 +36,6 @@ void setup() {
 
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setCursor(0, 0);
-    M5.Lcd.setTextSize(2);
     M5.Lcd.println("RFID Reader");
     M5.Lcd.printf("Mac: %s\n", macStr);
     M5.Lcd.printf("SSID: %s\n", i_ssid);

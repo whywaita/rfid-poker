@@ -1,6 +1,6 @@
 #include <vector>
 
-#include <M5Core2.h>
+#include <M5Unified.h>
 #include <Wire.h>
 #include <MFRC522_I2C.h>
 #include "ClosedCube_TCA9548A.h"
@@ -10,7 +10,7 @@
 
 #define WIRE Wire
 #define PaHub_I2C_ADDRESS 0x70
-#define RFID_READER_COUNT 4  // The number of RFID readers
+#define RFID_READER_COUNT 6  // The number of RFID readers
 
 #define RFID_ADDRESS 0x28    // The I2C address of the RFID reader
 #define PIN_RESET 12
@@ -25,7 +25,7 @@ String readUID();
 bool hasCard();
 int getPairID(int channel_id);
 
-void postCardAsync(String macAddr, String uid, int pair_id, String i_host);
+void postCard(String macAddr, String uid, int pair_id, String i_host);
 
 void triggerReadUID(int channel, String uid, String macAddr, String i_host) {
     M5.Lcd.printf("[c%d] ", channel);
@@ -38,7 +38,7 @@ void triggerReadUID(int channel, String uid, String macAddr, String i_host) {
     Serial.println("");
 
     int pair_id = getPairID(channel);
-    postCardAsync(macAddr, uid, pair_id, i_host);
+    postCard(macAddr, uid, pair_id, i_host);
 }
 
 void setupRfId() {
