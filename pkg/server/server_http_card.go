@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,12 +11,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/whywaita/rfid-poker/pkg/query"
-
 	"github.com/whywaita/poker-go"
 	"github.com/whywaita/rfid-poker/pkg/config"
 	"github.com/whywaita/rfid-poker/pkg/playercards"
-
+	"github.com/whywaita/rfid-poker/pkg/query"
 	"github.com/whywaita/rfid-poker/pkg/store"
 
 	"github.com/labstack/echo/v4"
@@ -51,13 +48,9 @@ func HandleCards(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
 		}
 	}
 
-	uid, err := hex.DecodeString(input.UID)
-	if err != nil {
-		log.Printf("invalid UID: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid UID")
-	}
+	uid := strings.ReplaceAll(input.UID, " ", "")
 
-	if err := processCard(c.Request().Context(), conn, config.Conf, string(uid), input.DeviceID, input.PairID, updatedCh); err != nil {
+	if err := processCard(c.Request().Context(), conn, config.Conf, uid, input.DeviceID, input.PairID, updatedCh); err != nil {
 		log.Printf("failed to process card: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to process card")
 	}
@@ -66,9 +59,9 @@ func HandleCards(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
 }
 
 func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string, deviceID string, pairID int, updatedCh chan struct{}) error {
-	pcard, err := playercards.LoadPlayerCard([]byte(uid), cc.CardIDs)
+	pcard, err := playercards.LoadPlayerCard(uid, cc.CardIDs)
 	if err != nil {
-		return fmt.Errorf("playercards.LoadPlayerCard(%s, cardConfigs): %w", hex.EncodeToString([]byte(uid)), err)
+		return fmt.Errorf("playercards.LoadPlayerCard(%s, cardConfigs): %w", uid, err)
 	}
 	card, err := playercards.UnmarshalPlayerCard(pcard)
 	if err != nil {
@@ -138,7 +131,12 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 			if err := store.AddCard(ctx, conn, card, serial); err != nil {
 				return fmt.Errorf("store.AddCard(): %w", err)
 			}
-		case len(storedCards) == 1 && storedCards[0].Rank != card.Rank && storedCards[0].Suit != card.Suit: // not same card
+		case len(storedCards) == 1:
+			// if same card, do nothing
+			if storedCards[0].Rank == card.Rank && storedCards[0].Suit == card.Suit {
+				return nil
+			}
+
 			if err := store.AddHand(ctx, conn, []poker.Card{storedCards[0], card}, serial); err != nil {
 				return fmt.Errorf("store.AddHand(): %w", err)
 			}

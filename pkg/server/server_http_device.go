@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -28,6 +29,8 @@ func HandleDeviceBoot(c echo.Context, conn *sql.DB) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
 	}
 
+	var registeredAntenna []string
+
 	for _, pairID := range input.PairIDs {
 		_, err := store.GetAntennaBySerial(ctx, conn, input.DeviceID, pairID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -40,8 +43,14 @@ func HandleDeviceBoot(c echo.Context, conn *sql.DB) error {
 				log.Printf("failed to register new antenna: %v", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to register new antenna")
 			}
+			registeredAntenna = append(registeredAntenna, store.ToSerial(input.DeviceID, pairID))
 		}
+		fmt.Println("registered antenna: ", store.ToSerial(input.DeviceID, pairID))
+		fmt.Println("err: ", err)
+	}
+	if len(registeredAntenna) == 0 {
+		return c.JSON(http.StatusOK, "already registered antenna, ok")
 	}
 
-	return c.JSON(http.StatusOK, "success to register new antenna")
+	return c.JSON(http.StatusOK, fmt.Sprintf("registered antenna: %v", registeredAntenna))
 }

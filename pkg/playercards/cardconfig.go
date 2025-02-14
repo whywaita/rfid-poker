@@ -1,7 +1,6 @@
 package playercards
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/whywaita/poker-go"
@@ -11,10 +10,8 @@ import (
 // in: UID of card
 //
 // return: card name (as e.g. As, Kh, 2d...)
-func LoadPlayerCard(in []byte, cardIDs map[string]string) (string, error) {
-	str := hex.EncodeToString(in[:])
-
-	v, ok := cardIDs[str]
+func LoadPlayerCard(in string, cardIDs map[string]string) (string, error) {
+	v, ok := cardIDs[in]
 	if !ok {
 		return "", fmt.Errorf("unknown card")
 	}
