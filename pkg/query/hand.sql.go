@@ -118,6 +118,15 @@ func (q *Queries) MuckHand(ctx context.Context, id int64) error {
 	return err
 }
 
+const resetEquity = `-- name: ResetEquity :exec
+UPDATE hand SET equity = 0
+`
+
+func (q *Queries) ResetEquity(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, resetEquity)
+	return err
+}
+
 const updateEquity = `-- name: UpdateEquity :exec
 UPDATE hand SET equity = ? WHERE id = ?
 `

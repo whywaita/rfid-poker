@@ -30,7 +30,6 @@ func HandleDeviceBoot(c echo.Context, conn *sql.DB) error {
 	}
 
 	var registeredAntenna []string
-
 	for _, pairID := range input.PairIDs {
 		_, err := store.GetAntennaBySerial(ctx, conn, input.DeviceID, pairID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -45,8 +44,6 @@ func HandleDeviceBoot(c echo.Context, conn *sql.DB) error {
 			}
 			registeredAntenna = append(registeredAntenna, store.ToSerial(input.DeviceID, pairID))
 		}
-		fmt.Println("registered antenna: ", store.ToSerial(input.DeviceID, pairID))
-		fmt.Println("err: ", err)
 	}
 	if len(registeredAntenna) == 0 {
 		return c.JSON(http.StatusOK, "already registered antenna, ok")

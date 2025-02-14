@@ -12,7 +12,7 @@ import (
 	"github.com/whywaita/rfid-poker/pkg/query"
 )
 
-func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial string) error {
+func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial string, updatedCh chan struct{}) error {
 	if len(input) != 2 {
 		return fmt.Errorf("invalid input length (not 2): %v", input)
 	}
@@ -77,14 +77,17 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 		return fmt.Errorf("tx.Commit(): %w", err)
 	}
 
-	if err := calcEquity(ctx, query.New(conn)); err != nil {
-		return fmt.Errorf("calcEquity: %w", err)
-	}
+	updatedCh <- struct{}{}
 
+	go func() {
+		if err := calcEquity(context.Background(), query.New(conn), updatedCh); err != nil {
+			log.Printf("calcEquity: %v", err)
+		}
+	}()
 	return nil
 }
 
-func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
+func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card, updatedCh chan struct{}) error {
 	log.Printf("MuckPlayer: %v", cards)
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -120,9 +123,13 @@ func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
 		return fmt.Errorf("tx.Commit(): %w", err)
 	}
 
-	if err := calcEquity(ctx, query.New(conn)); err != nil {
-		return fmt.Errorf("calcEquity: %w", err)
-	}
+	updatedCh <- struct{}{}
+
+	go func() {
+		if err := calcEquity(context.Background(), query.New(conn), updatedCh); err != nil {
+			log.Printf("calcEquity: %v", err)
+		}
+	}()
 
 	return nil
 }

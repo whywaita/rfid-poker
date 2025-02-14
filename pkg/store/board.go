@@ -17,7 +17,7 @@ var (
 	ErrWillGoToNextGame = errors.New("will go to next game")
 )
 
-func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
+func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, updatedCh chan struct{}) error {
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("conn.BeginTx(): %w", err)
@@ -59,8 +59,10 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
 		return fmt.Errorf("tx.Commit(): %w", err)
 	}
 
+	updatedCh <- struct{}{}
+
 	if isUpdated {
-		if err := calcEquity(ctx, query.New(conn)); err != nil {
+		if err := calcEquity(ctx, query.New(conn), updatedCh); err != nil {
 			log.Printf("calcEquity: %v", err)
 			return fmt.Errorf("calcEquity: %w", err)
 		}

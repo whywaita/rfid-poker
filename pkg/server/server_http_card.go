@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/whywaita/poker-go"
 	"github.com/whywaita/rfid-poker/pkg/config"
@@ -137,10 +136,9 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 				return nil
 			}
 
-			if err := store.AddHand(ctx, conn, []poker.Card{storedCards[0], card}, serial); err != nil {
+			if err := store.AddHand(ctx, conn, []poker.Card{storedCards[0], card}, serial, updatedCh); err != nil {
 				return fmt.Errorf("store.AddHand(): %w", err)
 			}
-			updatedCh <- struct{}{}
 		}
 	case "muck":
 		storedCards, err := store.GetCardBySerial(ctx, conn, serial)
@@ -153,57 +151,27 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 				return fmt.Errorf("store.AddCard(): %w", err)
 			}
 		case len(storedCards) == 1 && storedCards[0].Rank != card.Rank && storedCards[0].Suit != card.Suit: // not same card
-			if err := store.MuckPlayer(ctx, conn, []poker.Card{storedCards[0], card}); err != nil {
+			if err := store.MuckPlayer(ctx, conn, []poker.Card{storedCards[0], card}, updatedCh); err != nil {
 				return fmt.Errorf("store.MuckPlayer(): %w", err)
 			}
-			updatedCh <- struct{}{}
 		}
 	case "board":
 		// Send anyway if board
-		if err := store.AddBoard(ctx, conn, []poker.Card{card}); err != nil {
+		if err := store.AddBoard(ctx, conn, []poker.Card{card}, updatedCh); err != nil {
+			if errors.Is(err, store.ErrWillGoToNextGame) {
+				// go to next game
+				if err := store.ClearGame(ctx, conn); err != nil {
+					return fmt.Errorf("store.ClearGame(): %w", err)
+				}
+				updatedCh <- struct{}{}
+				return nil
+			}
+
 			return fmt.Errorf("store.AddBoard(): %w", err)
 		}
-		updatedCh <- struct{}{}
 	case "unknown":
-		log.Println("unknown type antenna")
+		log.Printf("unknown type antenna (serial: %s)", serial)
 	}
 
 	return nil
-}
-
-// We cached the cards that have been read by the reader.
-// key: playerID, value: []poker.Card
-var cache sync.Map
-
-func LoadCache(playerID string) []poker.Card {
-	loaded, ok := cache.Load(playerID)
-	if !ok {
-		return nil
-	}
-	s, ok := loaded.([]poker.Card)
-	if !ok {
-		return nil
-	}
-	return s
-}
-
-func SaveCache(playerID string, cards poker.Card) {
-	cached := LoadCache(playerID)
-	if cached == nil {
-		cache.Store(playerID, []poker.Card{cards})
-		return
-	}
-
-	for _, v := range cached {
-		if cards == v {
-			// already cached
-			return
-		}
-	}
-
-	cache.Store(playerID, append(cached, cards))
-}
-
-func ClearCache(playerID string) {
-	cache.Delete(playerID)
 }

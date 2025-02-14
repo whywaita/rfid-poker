@@ -20,6 +20,9 @@ RETURNING *;
 -- name: UpdateEquity :exec
 UPDATE hand SET equity = ? WHERE id = ?;
 
+-- name: ResetEquity :exec
+UPDATE hand SET equity = 0;
+
 -- name: MuckHand :exec
 UPDATE hand SET is_muck = true WHERE id = ?;
 

@@ -21,7 +21,7 @@ var (
 	calcEquityMu sync.RWMutex
 )
 
-func calcEquity(ctx context.Context, q *query.Queries) error {
+func calcEquity(ctx context.Context, q *query.Queries, updatedCh chan struct{}) error {
 	calcEquityMu.Lock()
 	defer calcEquityMu.Unlock()
 	playersRow, err := q.GetPlayersWithHand(ctx)
@@ -31,7 +31,12 @@ func calcEquity(ctx context.Context, q *query.Queries) error {
 
 	players := make([]poker.Player, 0, len(playersRow))
 
+	// check if one of the players has equity zero
+	hasEquityZero := false
 	for _, p := range playersRow {
+		if !p.Equity.Valid && !hasEquityZero {
+			hasEquityZero = true
+		}
 		pgCardA, err := query.Card{
 			Suit:    p.CardASuit,
 			Rank:    p.CardARank,
@@ -58,14 +63,23 @@ func calcEquity(ctx context.Context, q *query.Queries) error {
 		})
 	}
 
-	board, err := GetBoard(ctx, q)
-	if err != nil {
-		return fmt.Errorf("GetBoard(): %w", err)
+	if hasEquityZero {
+		// if one of the players has equity zero, need to calculate equity
+		// So will reset all equity
+		if err := q.ResetEquity(ctx); err != nil {
+			return fmt.Errorf("db.ResetEquity(): %w", err)
+		}
+		updatedCh <- struct{}{}
 	}
 
 	if len(players) <= 1 {
 		// if players is less than 2, no need to calculate equity
 		return nil
+	}
+
+	board, err := GetBoard(ctx, q)
+	if err != nil {
+		return fmt.Errorf("GetBoard(): %w", err)
 	}
 
 	log.Printf("Start EvaluateEquityByMadeHandWithCommunity(%+v, %+v)", players, board)
@@ -86,6 +100,8 @@ func calcEquity(ctx context.Context, q *query.Queries) error {
 			return fmt.Errorf("db.UpdatePlayerEquity(hand_id: %v): %w", p.HandID, err)
 		}
 	}
+
+	updatedCh <- struct{}{}
 
 	return nil
 }
