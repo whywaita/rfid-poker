@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/rfid-poker/pkg/readerhttp"
+	"github.com/whywaita/rfid-poker/pkg/server"
 )
 
 func main() {
@@ -58,9 +58,10 @@ func run() error {
 // DoReq send card data to server
 func DoReq(ctx context.Context, serial string, cards []string, u *url.URL) error {
 	for _, card := range cards {
-		body := readerhttp.Card{
-			UID:    card,
-			Serial: serial,
+		body := server.Card{
+			UID:      card,
+			DeviceID: serial,
+			PairID:   1,
 		}
 		b, err := json.Marshal(body)
 		if err != nil {
