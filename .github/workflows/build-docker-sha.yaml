@@ -27,7 +27,7 @@ jobs:
           tags: |
             type=sha
       - name: Build container image (ghcr.io)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -45,7 +45,7 @@ jobs:
           tags: |
             type=sha
       - name: Build container image (whywaita.sakuracr.jp)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: ${{ steps.meta-sakuracr.outputs.tags }}
