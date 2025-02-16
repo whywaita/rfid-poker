@@ -85,7 +85,7 @@ func connectMySQL() (*sql.DB, error) {
 	cfg.User = config.Conf.MySQLUser
 	cfg.Passwd = config.Conf.MySQLPass
 	cfg.Net = "tcp"
-	cfg.Addr = config.Conf.MySQLHost
+	cfg.Addr = fmt.Sprintf("%s:%s", config.Conf.MySQLHost, config.Conf.MySQLPort)
 	cfg.DBName = config.Conf.MySQLDatabase
 
 	cfg.MultiStatements = true

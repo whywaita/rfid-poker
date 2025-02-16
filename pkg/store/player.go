@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -47,6 +48,10 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("hand.LastInsertId(): %w", err)
+	}
+	if handResult > math.MaxInt32 {
+		tx.Rollback()
+		return fmt.Errorf("hand ID %d exceeds maximum int32 value", handResult)
 	}
 
 	for _, c := range input {
