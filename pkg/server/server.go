@@ -51,11 +51,20 @@ func Run(ctx context.Context) error {
 	e := echo.New()
 	e.Use(middleware.Logger())
 
+	// For client
 	e.POST("/device/boot", func(c echo.Context) error {
 		return HandleDeviceBoot(c, conn)
 	})
 	e.POST("/card", func(c echo.Context) error {
 		return HandleCards(c, conn, updatedCh)
+	})
+
+	// For admin
+	e.GET("/admin/antenna", func(c echo.Context) error {
+		return HandleGetAdminAntenna(c, conn)
+	})
+	e.POST("/admin/antenna/:id", func(c echo.Context) error {
+		return HandlePostAdminAntenna(c, conn)
 	})
 
 	e.GET("/ws", func(c echo.Context) error {

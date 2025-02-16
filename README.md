@@ -4,55 +4,39 @@
 
 ## Requirements
 
-- PaSoRi
-  - Players x N (N is the number of players) + 1 (for muck)
-  - We tested with [RC-S380](https://www.sony.co.jp/Products/felica/consumer/products/RC-S380.html)
+- M5Stack + RFID module
+  - Players x N (N is the number of players) + 1 (for muck) + 1 (for board)
+  - We tested with...
+    - [M5Stack Core2](https://docs.m5stack.com/en/core/core2)
+    - [Unit RFID2](https://docs.m5stack.com/en/unit/rfid2)
+      - This unit has been confirmed by [Switch Science](https://www.switch-science.com/products/8301) to be compliant with Japan's Radio Law. ([ref](https://mag.switch-science.com/2022/05/24/m5stack-3/))
 - Player cards with NFC chip (ISO/IEC 14443 Type A)
   - We tested player cards include MIFARE Ultralight EV1
 
 ## Setup
-
-### Install a dependencies
-
-- libusb-dev
-
-### Unload the kernel driver for the device
-
-```bash
-$ sudo echo "blacklist port100" >> /etc/modprobe.d/noport100.conf
-```
 
 ### Prepare a config file
 
 ```bash
 $ cat config.yaml
 card_ids:  ## UID of NEC card
-  040e3bd2286b85000000: As
-  040f43d2286b85000000: Qc
-  04101b9a776b85000000: Kc
+  040e3bd2286b85: As
+  040f43d2286b85: Qc
+  04101b9a776b85: Kc
   ...
-players:  ## The serial of PaSoRi for each player
-  - name: "Player 1"
-    serial: 0000000
-  - name: "Player 2"
-    serial: 0000001
-muck_serial: 0000002  ## The serial of PaSoRi for muck
-board_serial: 0000003
-
-# Optional values
-
-http_mode: true  ## If true, the server will receive the cards from the HTTP request (default: false)
 ```
 
 ### Run the server
 
 ```bash
-# Run the server with root
-$ sudo go run main.go
-
-# Or run the server with usb group
-$ sudo gpasswd -a $USER usb
+# Run the server
 $ go run main.go
+```
+
+### Develop
+
+```bash
+$ ENV=development go run main.go
 ```
 
 ## Components

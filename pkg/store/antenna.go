@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/whywaita/rfid-poker/pkg/query"
 )
@@ -45,6 +47,20 @@ func RegisterNewDevice(ctx context.Context, conn *sql.DB, deviceID string, pairI
 
 func ToSerial(deviceID string, pairID int) string {
 	return fmt.Sprintf("%s-%d", deviceID, pairID)
+}
+
+func FromSerial(serial string) (string, int, error) {
+	s := strings.Split(serial, "-")
+	if len(s) != 2 {
+		return "", 0, errors.New("invalid serial format")
+	}
+
+	pairID, err := strconv.Atoi(s[1])
+	if err != nil {
+		return "", 0, fmt.Errorf("strconv.Atoi(): %w", err)
+	}
+
+	return s[0], pairID, nil
 }
 
 // GetUnknownAntennaTypeID get unknown antenna type id
