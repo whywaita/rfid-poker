@@ -45,7 +45,7 @@ const getPlayerBySerial = `-- name: GetPlayerBySerial :one
 SELECT player.id, player.name
 FROM player
 JOIN antenna ON player.id = antenna.player_id
-WHERE antenna.serial = ?
+WHERE antenna.serial = ? LIMIT 1
 `
 
 func (q *Queries) GetPlayerBySerial(ctx context.Context, serial string) (Player, error) {
@@ -53,6 +53,61 @@ func (q *Queries) GetPlayerBySerial(ctx context.Context, serial string) (Player,
 	var i Player
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
+}
+
+const getPlayerWithDevice = `-- name: GetPlayerWithDevice :one
+SELECT player.id, player.name, antenna.serial
+FROM player
+JOIN antenna ON player.id = antenna.player_id
+WHERE player.id = ? LIMIT 1
+`
+
+type GetPlayerWithDeviceRow struct {
+	ID     int32
+	Name   string
+	Serial string
+}
+
+func (q *Queries) GetPlayerWithDevice(ctx context.Context, id int32) (GetPlayerWithDeviceRow, error) {
+	row := q.db.QueryRowContext(ctx, getPlayerWithDevice, id)
+	var i GetPlayerWithDeviceRow
+	err := row.Scan(&i.ID, &i.Name, &i.Serial)
+	return i, err
+}
+
+const getPlayersWithDevice = `-- name: GetPlayersWithDevice :many
+SELECT player.id, player.name, antenna.serial
+FROM player
+JOIN antenna ON player.id = antenna.player_id
+`
+
+type GetPlayersWithDeviceRow struct {
+	ID     int32
+	Name   string
+	Serial string
+}
+
+func (q *Queries) GetPlayersWithDevice(ctx context.Context) ([]GetPlayersWithDeviceRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPlayersWithDevice)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPlayersWithDeviceRow
+	for rows.Next() {
+		var i GetPlayersWithDeviceRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Serial); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPlayersWithHand = `-- name: GetPlayersWithHand :many
@@ -123,4 +178,19 @@ func (q *Queries) GetPlayersWithHand(ctx context.Context) ([]GetPlayersWithHandR
 		return nil, err
 	}
 	return items, nil
+}
+
+const updatePlayerName = `-- name: UpdatePlayerName :execresult
+UPDATE player
+SET name = ?
+WHERE id = ?
+`
+
+type UpdatePlayerNameParams struct {
+	Name string
+	ID   int32
+}
+
+func (q *Queries) UpdatePlayerName(ctx context.Context, arg UpdatePlayerNameParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, updatePlayerName, arg.Name, arg.ID)
 }

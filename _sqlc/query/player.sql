@@ -2,11 +2,22 @@
 SELECT id, name FROM player
 WHERE id = ? LIMIT 1;
 
+-- name: GetPlayersWithDevice :many
+SELECT player.id, player.name, antenna.serial
+FROM player
+JOIN antenna ON player.id = antenna.player_id;
+
+-- name: GetPlayerWithDevice :one
+SELECT player.id, player.name, antenna.serial
+FROM player
+JOIN antenna ON player.id = antenna.player_id
+WHERE player.id = ? LIMIT 1;
+
 -- name: GetPlayerBySerial :one
 SELECT player.id, player.name
 FROM player
 JOIN antenna ON player.id = antenna.player_id
-WHERE antenna.serial = ?;
+WHERE antenna.serial = ? LIMIT 1;
 
 -- name: GetPlayersWithHand :many
 SELECT
@@ -31,6 +42,11 @@ WHERE hand.is_muck = false
 -- name: AddPlayer :execresult
 INSERT INTO player (name)
 VALUES (?);
+
+-- name: UpdatePlayerName :execresult
+UPDATE player
+SET name = ?
+WHERE id = ?;
 
 -- name: DeletePlayerWithHandWithCards :exec
 DELETE FROM card
