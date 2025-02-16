@@ -20,77 +20,53 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/whywaita/rfid-poker/pkg/config"
-	"github.com/whywaita/rfid-poker/pkg/playercards"
-	"github.com/whywaita/rfid-poker/pkg/query"
-	"github.com/whywaita/rfid-poker/pkg/reader"
-	"github.com/whywaita/rfid-poker/pkg/readerhttp"
-	"github.com/whywaita/rfid-poker/pkg/readerpasori"
 )
 
-func Run(ctx context.Context, configPath string) error {
+const dbPath = "./instance.db"
+
+func Run(ctx context.Context) error {
 	go func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 		log.Println(http.ListenAndServe(":6060", nil))
 	}()
 
-	handCh := make(chan playercards.HandData)
-	deviceCh := make(chan reader.Data)
 	updatedCh := make(chan struct{})
-
-	c, err := config.Load(configPath)
-	if err != nil {
-		return fmt.Errorf("playercards.LoadConfig(%s): %w", configPath, err)
-	}
 
 	conn, err := connectSQLite()
 	if err != nil {
 		return fmt.Errorf("connectSQLite(): %w", err)
 	}
-	if err := initializeDatabase(ctx, conn, *c); err != nil {
+	if err := initializeDatabase(conn); err != nil {
 		return fmt.Errorf("initializeDatabase(): %w", err)
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
 			log.Printf("conn.Close(): %v", err)
 		}
-		if err := os.Remove("./instance.db"); err != nil {
+		if err := os.Remove(dbPath); err != nil {
 			log.Printf("os.Remove(): %v", err)
-		}
-	}()
-
-	if c.HTTPMode {
-		go func() {
-			if err := readerhttp.PollingHTTP(deviceCh); err != nil {
-				log.Printf("reader.PollingHTTP(): %v", err)
-				return
-			}
-		}()
-	} else {
-		go func() {
-			if err := readerpasori.PollingDevices(deviceCh); err != nil {
-				log.Printf("reader.PollingDevices(): %v", err)
-				return
-			}
-		}()
-	}
-	go func() {
-		log.Printf("Start loading cards...")
-		if err := playercards.LoadCardsWithChannel(*c, handCh, deviceCh); err != nil {
-			log.Printf("playercards.LoadCardsWithChannel(ctx): %v", err)
-			return
-		}
-	}()
-	go func() {
-		if err := ReceiveData(ctx, conn, handCh, updatedCh, *c); err != nil {
-			log.Printf("ReceiveData(): %v", err)
-			return
 		}
 	}()
 
 	e := echo.New()
 	e.Use(middleware.Logger())
+
+	// For client
+	e.POST("/device/boot", func(c echo.Context) error {
+		return HandleDeviceBoot(c, conn)
+	})
+	e.POST("/card", func(c echo.Context) error {
+		return HandleCards(c, conn, updatedCh)
+	})
+
+	// For admin
+	e.GET("/admin/antenna", func(c echo.Context) error {
+		return HandleGetAdminAntenna(c, conn)
+	})
+	e.POST("/admin/antenna/:id", func(c echo.Context) error {
+		return HandlePostAdminAntenna(c, conn)
+	})
+
 	e.GET("/ws", func(c echo.Context) error {
 		return ws(c, conn, updatedCh)
 	})
@@ -104,9 +80,9 @@ func Run(ctx context.Context, configPath string) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if err := e.Shutdown(ctx); err != nil {
+	if err := e.Shutdown(cctx); err != nil {
 		e.Logger.Fatal(err)
 	}
 
@@ -114,16 +90,14 @@ func Run(ctx context.Context, configPath string) error {
 }
 
 func connectSQLite() (*sql.DB, error) {
-	instanceFilePath := "./instance.db"
-
-	if _, err := os.Stat(instanceFilePath); os.IsNotExist(err) {
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		log.Printf("instance.db is not exist. create new instance.db")
-		if _, err := os.Create(instanceFilePath); err != nil {
-			return nil, fmt.Errorf("os.Create(%s): %w", instanceFilePath, err)
+		if _, err := os.Create(dbPath); err != nil {
+			return nil, fmt.Errorf("os.Create(%s): %w", dbPath, err)
 		}
 	}
 
-	conn, err := sql.Open("sqlite3", instanceFilePath)
+	conn, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open(): %w", err)
 	}
@@ -131,9 +105,7 @@ func connectSQLite() (*sql.DB, error) {
 	return conn, nil
 }
 
-func initializeDatabase(ctx context.Context, conn *sql.DB, cc config.Config) error {
-	db := query.New(conn)
-
+func initializeDatabase(conn *sql.DB) error {
 	driver, err := sqlite3.WithInstance(conn, &sqlite3.Config{})
 	if err != nil {
 		return fmt.Errorf("sqlite3.WithInstance(): %w", err)
@@ -150,15 +122,6 @@ func initializeDatabase(ctx context.Context, conn *sql.DB, cc config.Config) err
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("m.Up(): %w", err)
-	}
-
-	for _, player := range cc.Players {
-		if _, err := db.AddPlayer(ctx, query.AddPlayerParams{
-			Name:   player.Name,
-			Serial: player.Serial,
-		}); err != nil {
-			return fmt.Errorf("db.AddPlayer(): %w", err)
-		}
 	}
 
 	return nil

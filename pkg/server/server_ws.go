@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
+
+	"github.com/whywaita/rfid-poker/pkg/store"
 
 	"github.com/whywaita/rfid-poker/pkg/query"
 
@@ -71,12 +74,12 @@ func sendPlayer(ctx context.Context, q *query.Queries, ws *websocket.Conn) error
 
 func getSend(ctx context.Context, q *query.Queries) (*Send, error) {
 	send := &Send{}
-	data, err := GetStored(ctx, q)
+	data, err := store.GetStored(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("GetStored(): %w", err)
 	}
 
-	board, err := GetBoard(ctx, q)
+	board, err := store.GetBoard(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("GetBoard(): %w", err)
 	}
@@ -90,6 +93,10 @@ func getSend(ctx context.Context, q *query.Queries) (*Send, error) {
 				Rank: card.Rank.String(),
 			})
 		}
+
+		sort.SliceStable(hand, func(i, j int) bool {
+			return hand[i].Rank < hand[j].Rank
+		})
 
 		send.Players = append(send.Players, SendPlayer{
 			Name:   s.PlayerName,
