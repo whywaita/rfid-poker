@@ -13,9 +13,17 @@ std::tuple<String, String> setupNetwork() {
 
     // Connect to WiFi
     StaticJsonDocument<512> n_jsondata;
-    while (SD.begin(GPIO_NUM_4) != true) {
+
+    int retryCount = 0;
+    const int maxRetry = 5;
+    while (SD.begin(GPIO_NUM_4) != true && retryCount < maxRetry) {
         M5.Lcd.println("SD Card Mount Failed");
         delay(500);
+        retryCount++;
+    }
+    if (retryCount >= maxRetry) {
+        M5.Lcd.println("Failed to mount SD card after maximum retries");
+        return {"", ""};  // Return empty strings to indicate failure
     }
 
     Serial.println("microSD card initialized.");
@@ -70,10 +78,17 @@ std::tuple<String, String> setupNetwork() {
         WiFi.begin(buf_ssid, buf_pass);
         M5.Lcd.printf("Connecting to %s\n", i_ssid);
         Serial.printf("Connecting to %s\n", i_ssid);
-        while (WiFi.status() != WL_CONNECTED)
+
+        unsigned long startTime = millis();
+        const unsigned long timeout = 30000; // 30 seconds timeout
+        while (WiFi.status() != WL_CONNECTED && (millis() - startTime < timeout))
         {
             delay(500);
             M5.Lcd.print(".");
+        }
+        if (WiFi.status() != WL_CONNECTED) {
+            M5.Lcd.println("\nWiFi connection timeout");
+            return {"", ""};
         }
 
         M5.Lcd.println("");

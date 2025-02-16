@@ -32,7 +32,15 @@ void setup() {
     M5.Lcd.drawLine(0, 50, M5.Lcd.width(), 50, WHITE);
 
     String i_ssid;
-    std::tie(i_ssid, i_host) = setupNetwork();
+
+    try {
+        std::tie(i_ssid, i_host) = setupNetwork();
+    } catch (const std::exception& e) {
+        M5.Lcd.println("Network Error:");
+        M5.Lcd.println(e.what());
+        delay(5000);
+        ESP.restart();
+    }
 
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setCursor(0, 0);
@@ -53,6 +61,12 @@ void loop() {
   
   // Set the cursor to the dynamic display part
   M5.Lcd.setCursor(0, 51);
-  readAllRfid(macStr, i_host);
+
+  try {
+    readAllRfid(macStr, i_host);
+  } catch (const std::exception& e) {
+    M5.Lcd.println("RFID Error:");
+    M5.Lcd.println(e.what());
+  }
   delay(1000);
 }
