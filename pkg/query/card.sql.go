@@ -10,27 +10,24 @@ import (
 	"database/sql"
 )
 
-const addCard = `-- name: AddCard :one
-INSERT INTO card (suit, rank, serial, is_board) VALUES (?, ?, ?, ?) RETURNING id
+const addCard = `-- name: AddCard :execresult
+INSERT INTO card (card_suit, card_rank, serial, is_board) VALUES (?, ?, ?, ?)
 `
 
 type AddCardParams struct {
-	Suit    string
-	Rank    string
-	Serial  string
-	IsBoard bool
+	CardSuit string
+	CardRank string
+	Serial   string
+	IsBoard  bool
 }
 
-func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, addCard,
-		arg.Suit,
-		arg.Rank,
+func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, addCard,
+		arg.CardSuit,
+		arg.CardRank,
 		arg.Serial,
 		arg.IsBoard,
 	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
 }
 
 const deleteBoardCards = `-- name: DeleteBoardCards :exec
@@ -52,24 +49,24 @@ func (q *Queries) DeleteCardAll(ctx context.Context) error {
 }
 
 const getCard = `-- name: GetCard :one
-SELECT id, suit, rank, hand_id, is_board FROM card WHERE id = ?
+SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE id = ?
 `
 
 type GetCardRow struct {
-	ID      int64
-	Suit    string
-	Rank    string
-	HandID  sql.NullInt64
-	IsBoard bool
+	ID       int32
+	CardSuit string
+	CardRank string
+	HandID   sql.NullInt32
+	IsBoard  bool
 }
 
-func (q *Queries) GetCard(ctx context.Context, id int64) (GetCardRow, error) {
+func (q *Queries) GetCard(ctx context.Context, id int32) (GetCardRow, error) {
 	row := q.db.QueryRowContext(ctx, getCard, id)
 	var i GetCardRow
 	err := row.Scan(
 		&i.ID,
-		&i.Suit,
-		&i.Rank,
+		&i.CardSuit,
+		&i.CardRank,
 		&i.HandID,
 		&i.IsBoard,
 	)
@@ -77,29 +74,29 @@ func (q *Queries) GetCard(ctx context.Context, id int64) (GetCardRow, error) {
 }
 
 const getCardByRankSuit = `-- name: GetCardByRankSuit :one
-SELECT id, suit, rank, hand_id, is_board FROM card WHERE rank = ? AND suit = ?
+SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE card_rank = ? AND card_suit = ?
 `
 
 type GetCardByRankSuitParams struct {
-	Rank string
-	Suit string
+	CardRank string
+	CardSuit string
 }
 
 type GetCardByRankSuitRow struct {
-	ID      int64
-	Suit    string
-	Rank    string
-	HandID  sql.NullInt64
-	IsBoard bool
+	ID       int32
+	CardSuit string
+	CardRank string
+	HandID   sql.NullInt32
+	IsBoard  bool
 }
 
 func (q *Queries) GetCardByRankSuit(ctx context.Context, arg GetCardByRankSuitParams) (GetCardByRankSuitRow, error) {
-	row := q.db.QueryRowContext(ctx, getCardByRankSuit, arg.Rank, arg.Suit)
+	row := q.db.QueryRowContext(ctx, getCardByRankSuit, arg.CardRank, arg.CardSuit)
 	var i GetCardByRankSuitRow
 	err := row.Scan(
 		&i.ID,
-		&i.Suit,
-		&i.Rank,
+		&i.CardSuit,
+		&i.CardRank,
 		&i.HandID,
 		&i.IsBoard,
 	)
@@ -107,15 +104,15 @@ func (q *Queries) GetCardByRankSuit(ctx context.Context, arg GetCardByRankSuitPa
 }
 
 const getCardBySerial = `-- name: GetCardBySerial :many
-SELECT id, suit, rank, hand_id, is_board FROM card WHERE serial = ?
+SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE serial = ?
 `
 
 type GetCardBySerialRow struct {
-	ID      int64
-	Suit    string
-	Rank    string
-	HandID  sql.NullInt64
-	IsBoard bool
+	ID       int32
+	CardSuit string
+	CardRank string
+	HandID   sql.NullInt32
+	IsBoard  bool
 }
 
 func (q *Queries) GetCardBySerial(ctx context.Context, serial string) ([]GetCardBySerialRow, error) {
@@ -129,8 +126,8 @@ func (q *Queries) GetCardBySerial(ctx context.Context, serial string) ([]GetCard
 		var i GetCardBySerialRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Suit,
-			&i.Rank,
+			&i.CardSuit,
+			&i.CardRank,
 			&i.HandID,
 			&i.IsBoard,
 		); err != nil {
@@ -147,27 +144,16 @@ func (q *Queries) GetCardBySerial(ctx context.Context, serial string) ([]GetCard
 	return items, nil
 }
 
-const setCardHandByCardID = `-- name: SetCardHandByCardID :one
+const setCardHandByCardID = `-- name: SetCardHandByCardID :execresult
 UPDATE card SET hand_id = ?
 WHERE id = ?
-RETURNING id, suit, rank, is_board, hand_id, serial
 `
 
 type SetCardHandByCardIDParams struct {
-	HandID sql.NullInt64
-	ID     int64
+	HandID sql.NullInt32
+	ID     int32
 }
 
-func (q *Queries) SetCardHandByCardID(ctx context.Context, arg SetCardHandByCardIDParams) (Card, error) {
-	row := q.db.QueryRowContext(ctx, setCardHandByCardID, arg.HandID, arg.ID)
-	var i Card
-	err := row.Scan(
-		&i.ID,
-		&i.Suit,
-		&i.Rank,
-		&i.IsBoard,
-		&i.HandID,
-		&i.Serial,
-	)
-	return i, err
+func (q *Queries) SetCardHandByCardID(ctx context.Context, arg SetCardHandByCardIDParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, setCardHandByCardID, arg.HandID, arg.ID)
 }

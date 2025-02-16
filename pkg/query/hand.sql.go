@@ -10,22 +10,13 @@ import (
 	"database/sql"
 )
 
-const addHand = `-- name: AddHand :one
+const addHand = `-- name: AddHand :execresult
 INSERT INTO hand (player_id, is_muck)
 VALUES (?, false)
-RETURNING id, player_id, equity, is_muck
 `
 
-func (q *Queries) AddHand(ctx context.Context, playerID int64) (Hand, error) {
-	row := q.db.QueryRowContext(ctx, addHand, playerID)
-	var i Hand
-	err := row.Scan(
-		&i.ID,
-		&i.PlayerID,
-		&i.Equity,
-		&i.IsMuck,
-	)
-	return i, err
+func (q *Queries) AddHand(ctx context.Context, playerID int32) (sql.Result, error) {
+	return q.db.ExecContext(ctx, addHand, playerID)
 }
 
 const deleteHandAll = `-- name: DeleteHandAll :exec
@@ -42,12 +33,12 @@ SELECT id, player_id, equity FROM hand WHERE id = ? LIMIT 1
 `
 
 type GetHandRow struct {
-	ID       int64
-	PlayerID int64
+	ID       int32
+	PlayerID int32
 	Equity   sql.NullFloat64
 }
 
-func (q *Queries) GetHand(ctx context.Context, id int64) (GetHandRow, error) {
+func (q *Queries) GetHand(ctx context.Context, id int32) (GetHandRow, error) {
 	row := q.db.QueryRowContext(ctx, getHand, id)
 	var i GetHandRow
 	err := row.Scan(&i.ID, &i.PlayerID, &i.Equity)
@@ -64,8 +55,8 @@ WHERE antenna.serial = ?
 `
 
 type GetHandBySerialRow struct {
-	HandID   int64
-	PlayerID sql.NullInt64
+	HandID   int32
+	PlayerID sql.NullInt32
 	Equity   sql.NullFloat64
 }
 
@@ -81,8 +72,8 @@ SELECT id, player_id, equity FROM hand WHERE is_muck = false
 `
 
 type GetHandNotMuckedRow struct {
-	ID       int64
-	PlayerID int64
+	ID       int32
+	PlayerID int32
 	Equity   sql.NullFloat64
 }
 
@@ -113,7 +104,7 @@ const muckHand = `-- name: MuckHand :exec
 UPDATE hand SET is_muck = true WHERE id = ?
 `
 
-func (q *Queries) MuckHand(ctx context.Context, id int64) error {
+func (q *Queries) MuckHand(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, muckHand, id)
 	return err
 }
@@ -133,7 +124,7 @@ UPDATE hand SET equity = ? WHERE id = ?
 
 type UpdateEquityParams struct {
 	Equity sql.NullFloat64
-	ID     int64
+	ID     int32
 }
 
 func (q *Queries) UpdateEquity(ctx context.Context, arg UpdateEquityParams) error {

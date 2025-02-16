@@ -17,7 +17,7 @@ var (
 	ErrWillGoToNextGame = errors.New("will go to next game")
 )
 
-func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, updatedCh chan struct{}) error {
+func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial string, updatedCh chan struct{}) error {
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("conn.BeginTx(): %w", err)
@@ -36,7 +36,7 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, updatedCh c
 	}
 
 	board, needInsert, isUpdated := concatCards(nowBoard, cards)
-	if len(board) > 6 {
+	if len(board) >= 6 {
 		// load 7 cards. will go to next game.
 		tx.Rollback()
 		return ErrWillGoToNextGame
@@ -45,8 +45,9 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, updatedCh c
 	if len(needInsert) > 0 {
 		for _, c := range needInsert {
 			err := qWithTx.AddCardToBoard(ctx, query.AddCardToBoardParams{
-				Suit: c.Suit.String(),
-				Rank: c.Rank.String(),
+				CardSuit: c.Suit.String(),
+				CardRank: c.Rank.String(),
+				Serial:   serial,
 			})
 			if err != nil {
 				tx.Rollback()
@@ -78,7 +79,7 @@ func GetBoardAll(ctx context.Context, q *query.Queries) ([]poker.Card, error) {
 
 	var board []poker.Card
 	for _, c := range cards {
-		card, err := query.Card{Suit: c.Suit, Rank: c.Rank}.ToPokerGo()
+		card, err := query.Card{CardSuit: c.CardSuit, CardRank: c.CardRank}.ToPokerGo()
 		if err != nil {
 			return nil, fmt.Errorf("card.ToPokerGo(): %w", err)
 		}
@@ -104,7 +105,7 @@ func GetBoard(ctx context.Context, q *query.Queries) ([]poker.Card, error) {
 
 	var board []poker.Card
 	for _, c := range cards {
-		card, err := query.Card{Suit: c.Suit, Rank: c.Rank}.ToPokerGo()
+		card, err := query.Card{CardSuit: c.CardSuit, CardRank: c.CardRank}.ToPokerGo()
 		if err != nil {
 			return nil, fmt.Errorf("card.ToPokerGo(): %w", err)
 		}

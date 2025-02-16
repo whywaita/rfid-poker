@@ -9,34 +9,34 @@ import (
 )
 
 type Antenna struct {
-	ID            int64
+	ID            int32
 	Serial        string
-	AntennaTypeID int64
-	PlayerID      sql.NullInt64
+	AntennaTypeID int32
+	PlayerID      sql.NullInt32
 }
 
 type AntennaType struct {
-	ID   int64
+	ID   int32
 	Name string
 }
 
 type Card struct {
-	ID      int64
-	Suit    string
-	Rank    string
-	IsBoard bool
-	HandID  sql.NullInt64
-	Serial  string
+	ID       int32
+	CardSuit string
+	CardRank string
+	IsBoard  bool
+	HandID   sql.NullInt32
+	Serial   string
 }
 
 type Hand struct {
-	ID       int64
-	PlayerID int64
+	ID       int32
+	PlayerID int32
 	Equity   sql.NullFloat64
 	IsMuck   bool
 }
 
 type Player struct {
-	ID   int64
+	ID   int32
 	Name string
 }

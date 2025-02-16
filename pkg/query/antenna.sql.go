@@ -17,7 +17,7 @@ VALUES (?, ?)
 
 type AddNewAntennaParams struct {
 	Serial        string
-	AntennaTypeID int64
+	AntennaTypeID int32
 }
 
 func (q *Queries) AddNewAntenna(ctx context.Context, arg AddNewAntennaParams) error {
@@ -32,10 +32,10 @@ JOIN antenna_type ON antenna_type.id = antenna.antenna_type_id
 `
 
 type GetAntennaRow struct {
-	ID              int64
+	ID              int32
 	Serial          string
-	AntennaTypeID   int64
-	PlayerID        sql.NullInt64
+	AntennaTypeID   int32
+	PlayerID        sql.NullInt32
 	AntennaTypeName string
 }
 
@@ -76,14 +76,14 @@ WHERE antenna.id = ?
 `
 
 type GetAntennaByIdRow struct {
-	ID              int64
+	ID              int32
 	Serial          string
-	AntennaTypeID   int64
-	PlayerID        sql.NullInt64
+	AntennaTypeID   int32
+	PlayerID        sql.NullInt32
 	AntennaTypeName string
 }
 
-func (q *Queries) GetAntennaById(ctx context.Context, id int64) (GetAntennaByIdRow, error) {
+func (q *Queries) GetAntennaById(ctx context.Context, id int32) (GetAntennaByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getAntennaById, id)
 	var i GetAntennaByIdRow
 	err := row.Scan(
@@ -104,10 +104,10 @@ WHERE serial = ?
 `
 
 type GetAntennaBySerialRow struct {
-	ID              int64
+	ID              int32
 	Serial          string
-	AntennaTypeID   int64
-	PlayerID        sql.NullInt64
+	AntennaTypeID   int32
+	PlayerID        sql.NullInt32
 	AntennaTypeName string
 }
 
@@ -128,9 +128,9 @@ const getAntennaTypeIdByAntennaTypeName = `-- name: GetAntennaTypeIdByAntennaTyp
 SELECT id FROM antenna_type WHERE name = ?
 `
 
-func (q *Queries) GetAntennaTypeIdByAntennaTypeName(ctx context.Context, name string) (int64, error) {
+func (q *Queries) GetAntennaTypeIdByAntennaTypeName(ctx context.Context, name string) (int32, error) {
 	row := q.db.QueryRowContext(ctx, getAntennaTypeIdByAntennaTypeName, name)
-	var id int64
+	var id int32
 	err := row.Scan(&id)
 	return id, err
 }
@@ -139,9 +139,9 @@ const getAntennaTypeIdIsUnknown = `-- name: GetAntennaTypeIdIsUnknown :one
 SELECT id FROM antenna_type WHERE name = 'unknown'
 `
 
-func (q *Queries) GetAntennaTypeIdIsUnknown(ctx context.Context) (int64, error) {
+func (q *Queries) GetAntennaTypeIdIsUnknown(ctx context.Context) (int32, error) {
 	row := q.db.QueryRowContext(ctx, getAntennaTypeIdIsUnknown)
-	var id int64
+	var id int32
 	err := row.Scan(&id)
 	return id, err
 }
@@ -155,10 +155,9 @@ func (q *Queries) ResetAntenna(ctx context.Context) error {
 	return err
 }
 
-const setAntennaTypeToAntennaBySerial = `-- name: SetAntennaTypeToAntennaBySerial :one
+const setAntennaTypeToAntennaBySerial = `-- name: SetAntennaTypeToAntennaBySerial :execresult
 UPDATE antenna SET antenna_type_id = (SELECT id FROM antenna_type WHERE name = ?)
 WHERE serial = ?
-RETURNING id, serial, antenna_type_id, player_id
 `
 
 type SetAntennaTypeToAntennaBySerialParams struct {
@@ -166,16 +165,8 @@ type SetAntennaTypeToAntennaBySerialParams struct {
 	Serial string
 }
 
-func (q *Queries) SetAntennaTypeToAntennaBySerial(ctx context.Context, arg SetAntennaTypeToAntennaBySerialParams) (Antenna, error) {
-	row := q.db.QueryRowContext(ctx, setAntennaTypeToAntennaBySerial, arg.Name, arg.Serial)
-	var i Antenna
-	err := row.Scan(
-		&i.ID,
-		&i.Serial,
-		&i.AntennaTypeID,
-		&i.PlayerID,
-	)
-	return i, err
+func (q *Queries) SetAntennaTypeToAntennaBySerial(ctx context.Context, arg SetAntennaTypeToAntennaBySerialParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, setAntennaTypeToAntennaBySerial, arg.Name, arg.Serial)
 }
 
 const setPlayerIDToAntennaBySerial = `-- name: SetPlayerIDToAntennaBySerial :exec
@@ -185,7 +176,7 @@ WHERE serial = ?
 `
 
 type SetPlayerIDToAntennaBySerialParams struct {
-	PlayerID sql.NullInt64
+	PlayerID sql.NullInt32
 	Serial   string
 }
 

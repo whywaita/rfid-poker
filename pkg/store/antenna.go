@@ -105,7 +105,7 @@ func (at AntennaType) String() string {
 }
 
 // GetUnknownAntennaTypeID get unknown antenna type id
-func GetUnknownAntennaTypeID(ctx context.Context, conn *sql.DB) (int64, error) {
+func GetUnknownAntennaTypeID(ctx context.Context, conn *sql.DB) (int32, error) {
 	q := query.New(conn)
 	antennaTypeID, err := q.GetAntennaTypeIdIsUnknown(ctx)
 	if err != nil {

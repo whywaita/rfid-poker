@@ -15,15 +15,15 @@ import (
 	"github.com/whywaita/rfid-poker/pkg/query"
 )
 
-type GetAdminAntennaResponse struct {
-	Antenna []GetAdminAntennaResponseAntenna `json:"antenna"`
-}
-
-type GetAdminAntennaResponseAntenna struct {
-	ID              int64  `json:"id"`
+type Antenna struct {
+	ID              int32  `json:"id"`
 	DeviceID        string `json:"device_id"`
 	PairID          int    `json:"pair_id"`
 	AntennaTypeName string `json:"antenna_type_name"`
+}
+
+type GetAdminAntennaResponse struct {
+	Antenna []Antenna `json:"antenna"`
 }
 
 func HandleGetAdminAntenna(c echo.Context, conn *sql.DB) error {
@@ -35,14 +35,14 @@ func HandleGetAdminAntenna(c echo.Context, conn *sql.DB) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	var respAntenna []GetAdminAntennaResponseAntenna
+	var respAntenna []Antenna
 	for _, a := range antenna {
 		deviceID, pairID, err := store.FromSerial(a.Serial)
 		if err != nil {
 			log.Printf("store.FromSerial(%s): %v", a.Serial, err)
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
-		respAntenna = append(respAntenna, GetAdminAntennaResponseAntenna{
+		respAntenna = append(respAntenna, Antenna{
 			ID:              a.ID,
 			DeviceID:        deviceID,
 			PairID:          pairID,
@@ -58,7 +58,7 @@ func HandleGetAdminAntenna(c echo.Context, conn *sql.DB) error {
 }
 
 type PostAdminAntennaRequest struct {
-	ID              string `param:"id"`
+	ID              string `param:"id" json:"id"`
 	AntennaTypeName string `json:"antenna_type_name"`
 }
 
@@ -77,24 +77,24 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	antenna, err := q.GetAntennaById(c.Request().Context(), int64(id))
+	antenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.JSON(http.StatusNotFound, nil)
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 		}
 		log.Printf("store.GetUnknownAntennaTypeID(): %v", err)
-		return c.JSON(http.StatusInternalServerError, nil)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	// check antenna type name
 	if store.GetAntennaType(req.AntennaTypeName) == store.AntennaTypeUnknown {
 		log.Printf("antenna type name %s is unknown", req.AntennaTypeName)
-		return c.JSON(http.StatusBadRequest, nil)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("antenna type name (input: %s) is unknown", req.AntennaTypeName)})
 	}
 
 	if _, err := q.GetAntennaTypeIdByAntennaTypeName(c.Request().Context(), req.AntennaTypeName); err != nil {
 		log.Printf("q.GetAntennaTypeIdByAntennaTypeName(): %v", err)
-		return c.JSON(http.StatusInternalServerError, nil)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if _, err := q.SetAntennaTypeToAntennaBySerial(c.Request().Context(), query.SetAntennaTypeToAntennaBySerialParams{
@@ -102,7 +102,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		Serial: antenna.Serial,
 	}); err != nil {
 		log.Printf("q.SetAntennaTypeToAntennaBySerial(): %v", err)
-		return c.JSON(http.StatusInternalServerError, nil)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if err := cleansingObjectWithChangeAntennaType(
@@ -111,13 +111,31 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		store.GetAntennaType(req.AntennaTypeName),
 	); err != nil {
 		log.Printf("cleansingObjectWithChangeAntennaType(): %v", err)
-		return c.JSON(http.StatusInternalServerError, nil)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, nil)
+	respAntenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
+	if err != nil {
+		log.Printf("q.GetAntennaById(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	deviceID, pairID, err := store.FromSerial(respAntenna.Serial)
+	if err != nil {
+		log.Printf("store.FromSerial(%s): %v", respAntenna.Serial, err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	resp := Antenna{
+		ID:              respAntenna.ID,
+		DeviceID:        deviceID,
+		PairID:          pairID,
+		AntennaTypeName: respAntenna.AntennaTypeName,
+	}
+
+	return c.JSON(http.StatusOK, resp)
 }
 
-func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, antennaID int64, oldType, newType store.AntennaType) error {
+func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, antennaID int32, oldType, newType store.AntennaType) error {
 	if oldType == newType {
 		return nil
 	}
@@ -141,7 +159,7 @@ func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, ant
 			return nil
 		}
 
-		if err := q.DeletePlayerWithHandWithCards(ctx, antenna.PlayerID.Int64); err != nil {
+		if err := q.DeletePlayerWithHandWithCards(ctx, antenna.PlayerID.Int32); err != nil {
 			return fmt.Errorf("q.DeletePlayerWithHandWithCards(): %w", err)
 		}
 	case oldType == store.AntennaTypeMuck:

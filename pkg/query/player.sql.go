@@ -10,17 +10,13 @@ import (
 	"database/sql"
 )
 
-const addPlayer = `-- name: AddPlayer :one
+const addPlayer = `-- name: AddPlayer :execresult
 INSERT INTO player (name)
 VALUES (?)
-RETURNING id, name
 `
 
-func (q *Queries) AddPlayer(ctx context.Context, name string) (Player, error) {
-	row := q.db.QueryRowContext(ctx, addPlayer, name)
-	var i Player
-	err := row.Scan(&i.ID, &i.Name)
-	return i, err
+func (q *Queries) AddPlayer(ctx context.Context, name string) (sql.Result, error) {
+	return q.db.ExecContext(ctx, addPlayer, name)
 }
 
 const deletePlayerWithHandWithCards = `-- name: DeletePlayerWithHandWithCards :exec
@@ -28,7 +24,7 @@ DELETE FROM card
 WHERE hand_id IN (SELECT id FROM hand WHERE player_id = ?)
 `
 
-func (q *Queries) DeletePlayerWithHandWithCards(ctx context.Context, playerID int64) error {
+func (q *Queries) DeletePlayerWithHandWithCards(ctx context.Context, playerID int32) error {
 	_, err := q.db.ExecContext(ctx, deletePlayerWithHandWithCards, playerID)
 	return err
 }
@@ -38,7 +34,7 @@ SELECT id, name FROM player
 WHERE id = ? LIMIT 1
 `
 
-func (q *Queries) GetPlayer(ctx context.Context, id int64) (Player, error) {
+func (q *Queries) GetPlayer(ctx context.Context, id int32) (Player, error) {
 	row := q.db.QueryRowContext(ctx, getPlayer, id)
 	var i Player
 	err := row.Scan(&i.ID, &i.Name)
@@ -66,11 +62,11 @@ SELECT
     hand.id AS hand_id,
     hand.equity,
     hand.is_muck,
-    card_a.suit AS card_a_suit,
-    card_a.rank AS card_a_rank,
+    card_a.card_suit AS card_a_suit,
+    card_a.card_rank AS card_a_rank,
     card_a.is_board AS card_a_is_board,
-    card_b.suit AS card_b_suit,
-    card_b.rank AS card_b_rank,
+    card_b.card_suit AS card_b_suit,
+    card_b.card_rank AS card_b_rank,
     card_b.is_board AS card_b_is_board
 FROM player
          INNER JOIN hand ON player.id = hand.player_id
@@ -81,9 +77,9 @@ WHERE hand.is_muck = false
 `
 
 type GetPlayersWithHandRow struct {
-	ID           int64
+	ID           int32
 	Name         string
-	HandID       int64
+	HandID       int32
 	Equity       sql.NullFloat64
 	IsMuck       bool
 	CardASuit    string
