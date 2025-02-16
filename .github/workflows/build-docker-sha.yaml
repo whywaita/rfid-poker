@@ -23,7 +23,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository_owner }}/waiting-dog
+          images: ghcr.io/${{ github.repository_owner }}/rfid-poker
           tags: |
             type=sha
       - name: Build container image (ghcr.io)
