@@ -35,7 +35,7 @@ jobs:
           cd ui/
           npm install
           npm run lint
-      - nane: Test (Platform.io / C++)
+      - name: Test (Platform.io / C++)
         run: |
           cd clients/m5stack
           pio run
