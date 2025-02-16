@@ -57,6 +57,12 @@ func Run(ctx context.Context) error {
 	e.POST("/admin/antenna/:id", func(c echo.Context) error {
 		return HandlePostAdminAntenna(c, conn)
 	})
+	e.GET("/admin/player", func(c echo.Context) error {
+		return HandleGetAdminPlayers(c, conn)
+	})
+	e.POST("/admin/player/:id", func(c echo.Context) error {
+		return HandlePostAdminPlayer(c, conn)
+	})
 
 	e.GET("/ws", func(c echo.Context) error {
 		return ws(c, conn, updatedCh)
