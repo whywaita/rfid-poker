@@ -76,23 +76,32 @@ func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	player, err := q.GetPlayer(c.Request().Context(), int32(id))
+	tx, err := conn.BeginTx(c.Request().Context(), nil)
+	if err != nil {
+		log.Printf("conn.BeginTx(): %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	defer tx.Rollback()
+
+	qWithTx := q.WithTx(tx)
+
+	player, err := qWithTx.GetPlayer(c.Request().Context(), int32(id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, ErrorResponse{Error: "player not found"})
 		}
-		log.Printf("q.GetPlayer(): %v", err)
+		log.Printf("qWithTx.GetPlayer(): %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	if _, err := q.UpdatePlayerName(c.Request().Context(), query.UpdatePlayerNameParams{
+	if _, err := qWithTx.UpdatePlayerName(c.Request().Context(), query.UpdatePlayerNameParams{
 		Name: req.Name,
 		ID:   player.ID,
 	}); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	respPlayer, err := q.GetPlayerWithDevice(c.Request().Context(), player.ID)
+	respPlayer, err := qWithTx.GetPlayerWithDevice(c.Request().Context(), player.ID)
 	if err != nil {
 		log.Printf("q.GetPlayer(%d): %v", id, err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -101,6 +110,11 @@ func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
 	deviceID, pairID, err := store.FromSerial(respPlayer.Serial)
 	if err != nil {
 		log.Printf("store.FromSerial(%s): %v", respPlayer.Serial, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("tx.Commit(): %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
