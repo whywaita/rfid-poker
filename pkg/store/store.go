@@ -38,17 +38,17 @@ func calcEquity(ctx context.Context, q *query.Queries, updatedCh chan struct{}) 
 			hasEquityZero = true
 		}
 		pgCardA, err := query.Card{
-			Suit:    p.CardASuit,
-			Rank:    p.CardARank,
-			IsBoard: p.CardAIsBoard,
+			CardSuit: p.CardASuit,
+			CardRank: p.CardARank,
+			IsBoard:  p.CardAIsBoard,
 		}.ToPokerGo()
 		if err != nil {
 			return fmt.Errorf("cardA.ToPokerGo(): %w", err)
 		}
 		pgCardB, err := query.Card{
-			Suit:    p.CardBSuit,
-			Rank:    p.CardBRank,
-			IsBoard: p.CardBIsBoard,
+			CardSuit: p.CardBSuit,
+			CardRank: p.CardBRank,
+			IsBoard:  p.CardBIsBoard,
 		}.ToPokerGo()
 		if err != nil {
 			return fmt.Errorf("cardB.ToPokerGo(): %w", err)
@@ -91,11 +91,8 @@ func calcEquity(ctx context.Context, q *query.Queries, updatedCh chan struct{}) 
 
 	for i, p := range playersRow {
 		if err := q.UpdateEquity(ctx, query.UpdateEquityParams{
-			Equity: sql.NullFloat64{
-				Float64: equities[i],
-				Valid:   true,
-			},
-			ID: p.HandID,
+			Equity: sql.NullFloat64{Float64: equities[i], Valid: true},
+			ID:     p.HandID,
 		}); err != nil {
 			return fmt.Errorf("db.UpdatePlayerEquity(hand_id: %v): %w", p.HandID, err)
 		}
@@ -123,12 +120,12 @@ func calcEquity(ctx context.Context, q *query.Queries, updatedCh chan struct{}) 
 func ClearGame(ctx context.Context, conn *sql.DB) error {
 	db := query.New(conn)
 
-	if err := db.DeleteHandAll(ctx); err != nil {
-		return fmt.Errorf("db.DeleteHandAll(): %w", err)
-	}
-
 	if err := db.DeleteCardAll(ctx); err != nil {
 		return fmt.Errorf("db.DeleteCardAll(): %w", err)
+	}
+
+	if err := db.DeleteHandAll(ctx); err != nil {
+		return fmt.Errorf("db.DeleteHandAll(): %w", err)
 	}
 
 	return nil

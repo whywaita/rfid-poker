@@ -43,13 +43,18 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 		tx.Rollback()
 		return fmt.Errorf("db.AddHand(): %w", err)
 	}
+	handResult, err := hand.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("hand.LastInsertId(): %w", err)
+	}
 
 	for _, c := range input {
 		_, err = qWithTx.AddCard(ctx, query.AddCardParams{
-			Suit:    c.Suit.String(),
-			Rank:    c.Rank.String(),
-			Serial:  serial,
-			IsBoard: false,
+			CardSuit: c.Suit.String(),
+			CardRank: c.Rank.String(),
+			Serial:   serial,
+			IsBoard:  false,
 		})
 		if err != nil && !sqlgraph.IsUniqueConstraintError(err) {
 			tx.Rollback()
@@ -57,15 +62,15 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 		}
 
 		dbCard, err := qWithTx.GetCardByRankSuit(ctx, query.GetCardByRankSuitParams{
-			Rank: c.Rank.String(),
-			Suit: c.Suit.String(),
+			CardRank: c.Rank.String(),
+			CardSuit: c.Suit.String(),
 		})
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("q.GetCardByRankSuit(): %w", err)
 		}
 		if _, err := qWithTx.SetCardHandByCardID(ctx, query.SetCardHandByCardIDParams{
-			HandID: sql.NullInt64{Int64: hand.ID, Valid: true},
+			HandID: sql.NullInt32{Int32: int32(handResult), Valid: true},
 			ID:     dbCard.ID,
 		}); err != nil {
 			tx.Rollback()
@@ -101,14 +106,14 @@ func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card, updatedCh
 	qWithTx := query.New(tx)
 
 	card, err := qWithTx.GetCardByRankSuit(ctx, query.GetCardByRankSuitParams{
-		Rank: cards[0].Rank.String(),
-		Suit: cards[0].Suit.String(),
+		CardRank: cards[0].Rank.String(),
+		CardSuit: cards[0].Suit.String(),
 	})
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("q.GetCardByRankSuit(): %w", err)
 	}
-	hand, err := qWithTx.GetHand(ctx, card.HandID.Int64)
+	hand, err := qWithTx.GetHand(ctx, card.HandID.Int32)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("q.GetHandByCardId(): %w", err)

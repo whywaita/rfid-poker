@@ -1,10 +1,10 @@
 -- name: GetBoard :many
-SELECT id, suit, rank, is_board FROM card
+SELECT id, card_suit, card_rank, serial, is_board FROM card
 WHERE is_board = true;
 
 -- name: AddCardToBoard :exec
-INSERT INTO card (suit, rank, is_board)
-VALUES (?, ?, true);
+INSERT INTO card (card_suit, card_rank, serial, is_board)
+VALUES (?, ?, ?,true);
 
 -- name: ResetBoard :exec
 DELETE FROM card

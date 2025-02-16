@@ -24,10 +24,9 @@ UPDATE antenna SET player_id = ?,
                    antenna_type_id = (SELECT id FROM antenna_type WHERE name = 'player')
 WHERE serial = ?;
 
--- name: SetAntennaTypeToAntennaBySerial :one
+-- name: SetAntennaTypeToAntennaBySerial :execresult
 UPDATE antenna SET antenna_type_id = (SELECT id FROM antenna_type WHERE name = ?)
-WHERE serial = ?
-RETURNING *;
+WHERE serial = ?;
 
 -- name: GetAntennaTypeIdIsUnknown :one
 SELECT id FROM antenna_type WHERE name = 'unknown';

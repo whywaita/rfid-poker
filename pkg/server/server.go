@@ -12,17 +12,16 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/whywaita/rfid-poker/pkg/config"
 )
-
-const dbPath = "./instance.db"
 
 func Run(ctx context.Context) error {
 	go func() {
@@ -32,21 +31,13 @@ func Run(ctx context.Context) error {
 
 	updatedCh := make(chan struct{})
 
-	conn, err := connectSQLite()
+	conn, err := connectMySQL()
 	if err != nil {
-		return fmt.Errorf("connectSQLite(): %w", err)
+		return fmt.Errorf("connectMySQL(): %w", err)
 	}
 	if err := initializeDatabase(conn); err != nil {
 		return fmt.Errorf("initializeDatabase(): %w", err)
 	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Printf("conn.Close(): %v", err)
-		}
-		if err := os.Remove(dbPath); err != nil {
-			log.Printf("os.Remove(): %v", err)
-		}
-	}()
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -89,31 +80,34 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
-func connectSQLite() (*sql.DB, error) {
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		log.Printf("instance.db is not exist. create new instance.db")
-		if _, err := os.Create(dbPath); err != nil {
-			return nil, fmt.Errorf("os.Create(%s): %w", dbPath, err)
-		}
-	}
+func connectMySQL() (*sql.DB, error) {
+	cfg := mysql.NewConfig()
+	cfg.User = config.Conf.MySQLUser
+	cfg.Passwd = config.Conf.MySQLPass
+	cfg.Net = "tcp"
+	cfg.Addr = config.Conf.MySQLHost
+	cfg.DBName = config.Conf.MySQLDatabase
 
-	conn, err := sql.Open("sqlite3", dbPath)
+	cfg.MultiStatements = true
+
+	conn, err := mysql.NewConnector(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("sql.Open(): %w", err)
+		return nil, fmt.Errorf("mysql.NewConnector(): %w", err)
 	}
 
-	return conn, nil
+	db := sql.OpenDB(conn)
+	return db, nil
 }
 
 func initializeDatabase(conn *sql.DB) error {
-	driver, err := sqlite3.WithInstance(conn, &sqlite3.Config{})
+	driver, err := mysqlmigrate.WithInstance(conn, &mysqlmigrate.Config{})
 	if err != nil {
-		return fmt.Errorf("sqlite3.WithInstance(): %w", err)
+		return fmt.Errorf("mysqlmigrate.WithInstance(): %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://_sqlc/migration",
-		"sqlite3",
+		"mysql",
 		driver,
 	)
 	if err != nil {

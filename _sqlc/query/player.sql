@@ -15,11 +15,11 @@ SELECT
     hand.id AS hand_id,
     hand.equity,
     hand.is_muck,
-    card_a.suit AS card_a_suit,
-    card_a.rank AS card_a_rank,
+    card_a.card_suit AS card_a_suit,
+    card_a.card_rank AS card_a_rank,
     card_a.is_board AS card_a_is_board,
-    card_b.suit AS card_b_suit,
-    card_b.rank AS card_b_rank,
+    card_b.card_suit AS card_b_suit,
+    card_b.card_rank AS card_b_rank,
     card_b.is_board AS card_b_is_board
 FROM player
          INNER JOIN hand ON player.id = hand.player_id
@@ -28,10 +28,9 @@ FROM player
 WHERE hand.is_muck = false
   AND card_a.id < card_b.id;
 
--- name: AddPlayer :one
+-- name: AddPlayer :execresult
 INSERT INTO player (name)
-VALUES (?)
-RETURNING *;
+VALUES (?);
 
 -- name: DeletePlayerWithHandWithCards :exec
 DELETE FROM card

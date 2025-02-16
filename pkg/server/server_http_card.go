@@ -88,27 +88,26 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 	}
 
 	// if unknown, register new player
-	var player query.Player
 	if strings.EqualFold(antenna.AntennaTypeName, "unknown") {
-		player, err = qWithTx.AddPlayer(ctx, fmt.Sprintf("player-%s-%d", deviceID, pairID))
+		resultPlayer, err := qWithTx.AddPlayer(ctx, fmt.Sprintf("player-%s-%d", deviceID, pairID))
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("query.AddPlayer(): %w", err)
 		}
+		playerID, err := resultPlayer.LastInsertId()
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("resultPlayer.LastInsertId(): %w", err)
+		}
 		if err := qWithTx.SetPlayerIDToAntennaBySerial(ctx, query.SetPlayerIDToAntennaBySerialParams{
-			PlayerID: sql.NullInt64{Int64: player.ID, Valid: true},
+			PlayerID: sql.NullInt32{Int32: int32(playerID), Valid: true},
 			Serial:   serial,
 		}); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("query.SetPlayerIDToAntennaBySerial(): %w", err)
 		}
-	} else {
-		player, err = qWithTx.GetPlayerBySerial(ctx, store.ToSerial(deviceID, pairID))
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("query.GetPlayerBySerial(): %w", err)
-		}
 	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("tx.Commit(): %w", err)
 	}
@@ -157,7 +156,7 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 		}
 	case "board":
 		// Send anyway if board
-		if err := store.AddBoard(ctx, conn, []poker.Card{card}, updatedCh); err != nil {
+		if err := store.AddBoard(ctx, conn, []poker.Card{card}, serial, updatedCh); err != nil {
 			if errors.Is(err, store.ErrWillGoToNextGame) {
 				// go to next game
 				if err := store.ClearGame(ctx, conn); err != nil {

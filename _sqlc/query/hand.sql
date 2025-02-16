@@ -12,10 +12,9 @@ WHERE antenna.serial = ?;
 -- name: GetHandNotMucked :many
 SELECT id, player_id, equity FROM hand WHERE is_muck = false;
 
--- name: AddHand :one
+-- name: AddHand :execresult
 INSERT INTO hand (player_id, is_muck)
-VALUES (?, false)
-RETURNING *;
+VALUES (?, false);
 
 -- name: UpdateEquity :exec
 UPDATE hand SET equity = ? WHERE id = ?;

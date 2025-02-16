@@ -1,19 +1,18 @@
 -- name: GetCard :one
-SELECT id, suit, rank, hand_id, is_board FROM card WHERE id = ?;
+SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE id = ?;
 
 -- name: GetCardByRankSuit :one
-SELECT id, suit, rank, hand_id, is_board FROM card WHERE rank = ? AND suit = ?;
+SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE card_rank = ? AND card_suit = ?;
 
 -- name: GetCardBySerial :many
-SELECT id, suit, rank, hand_id, is_board FROM card WHERE serial = ?;
+SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE serial = ?;
 
--- name: AddCard :one
-INSERT INTO card (suit, rank, serial, is_board) VALUES (?, ?, ?, ?) RETURNING id;
+-- name: AddCard :execresult
+INSERT INTO card (card_suit, card_rank, serial, is_board) VALUES (?, ?, ?, ?);
 
--- name: SetCardHandByCardID :one
+-- name: SetCardHandByCardID :execresult
 UPDATE card SET hand_id = ?
-WHERE id = ?
-RETURNING *;
+WHERE id = ?;
 
 -- name: DeleteBoardCards :exec
 DELETE FROM card WHERE is_board = true;

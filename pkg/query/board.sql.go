@@ -10,30 +10,32 @@ import (
 )
 
 const addCardToBoard = `-- name: AddCardToBoard :exec
-INSERT INTO card (suit, rank, is_board)
-VALUES (?, ?, true)
+INSERT INTO card (card_suit, card_rank, serial, is_board)
+VALUES (?, ?, ?,true)
 `
 
 type AddCardToBoardParams struct {
-	Suit string
-	Rank string
+	CardSuit string
+	CardRank string
+	Serial   string
 }
 
 func (q *Queries) AddCardToBoard(ctx context.Context, arg AddCardToBoardParams) error {
-	_, err := q.db.ExecContext(ctx, addCardToBoard, arg.Suit, arg.Rank)
+	_, err := q.db.ExecContext(ctx, addCardToBoard, arg.CardSuit, arg.CardRank, arg.Serial)
 	return err
 }
 
 const getBoard = `-- name: GetBoard :many
-SELECT id, suit, rank, is_board FROM card
+SELECT id, card_suit, card_rank, serial, is_board FROM card
 WHERE is_board = true
 `
 
 type GetBoardRow struct {
-	ID      int64
-	Suit    string
-	Rank    string
-	IsBoard bool
+	ID       int32
+	CardSuit string
+	CardRank string
+	Serial   string
+	IsBoard  bool
 }
 
 func (q *Queries) GetBoard(ctx context.Context) ([]GetBoardRow, error) {
@@ -47,8 +49,9 @@ func (q *Queries) GetBoard(ctx context.Context) ([]GetBoardRow, error) {
 		var i GetBoardRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Suit,
-			&i.Rank,
+			&i.CardSuit,
+			&i.CardRank,
+			&i.Serial,
 			&i.IsBoard,
 		); err != nil {
 			return nil, err

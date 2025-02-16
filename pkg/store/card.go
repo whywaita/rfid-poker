@@ -19,8 +19,8 @@ func GetCardBySerial(ctx context.Context, conn *sql.DB, serial string) ([]poker.
 	result := make([]poker.Card, 0, len(cards))
 	for _, c := range cards {
 		card := poker.Card{
-			Rank: poker.UnmarshalRankString(c.Rank),
-			Suit: poker.UnmarshalSuitString(c.Suit),
+			Rank: poker.UnmarshalRankString(c.CardRank),
+			Suit: poker.UnmarshalSuitString(c.CardSuit),
 		}
 		result = append(result, card)
 	}
@@ -31,9 +31,9 @@ func GetCardBySerial(ctx context.Context, conn *sql.DB, serial string) ([]poker.
 func AddCard(ctx context.Context, conn *sql.DB, card poker.Card, serial string) error {
 	q := query.New(conn)
 	_, err := q.AddCard(ctx, query.AddCardParams{
-		Serial: serial,
-		Suit:   card.Suit.String(),
-		Rank:   card.Rank.String(),
+		Serial:   serial,
+		CardSuit: card.Suit.String(),
+		CardRank: card.Rank.String(),
 	})
 	if err != nil {
 		return fmt.Errorf("q.AddCard(): %w", err)
