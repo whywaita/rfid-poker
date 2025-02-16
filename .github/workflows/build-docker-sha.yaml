@@ -1,0 +1,51 @@
+name: Build Docker image (sha)
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+jobs:
+  docker-build-sha:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry (ghcr.io)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/waiting-dog
+          tags: |
+            type=sha
+      - name: Build container image (ghcr.io)
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Login to sakuracr registry (whywaita.sakuracr.jp)
+        uses: docker/login-action@v3
+        with:
+          registry: whywaita.sakuracr.jp
+          username: github-actions
+          password: ${{ secrets.SAKURACR_PASSWORD }}
+      - uses: docker/metadata-action@v5
+        id: meta-sakuracr
+        with:
+          images: whywaita.sakuracr.jp/rfid-poker
+          tags: |
+            type=sha
+      - name: Build container image (whywaita.sakuracr.jp)
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ steps.meta-sakuracr.outputs.tags }}
