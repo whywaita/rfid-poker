@@ -63,6 +63,43 @@ func FromSerial(serial string) (string, int, error) {
 	return s[0], pairID, nil
 }
 
+type AntennaType int
+
+const (
+	AntennaTypeUnknown = iota
+	AntennaTypePlayer
+	AntennaTypeMuck
+	AntennaTypeBoard
+)
+
+// GetAntennaType get antenna type
+func GetAntennaType(antennaTypeName string) AntennaType {
+	switch antennaTypeName {
+	case "player":
+		return AntennaTypePlayer
+	case "muck":
+		return AntennaTypeMuck
+	case "board":
+		return AntennaTypeBoard
+	default:
+		return AntennaTypeUnknown
+	}
+}
+
+// GetAntennaTypeName get antenna type name
+func (at AntennaType) String() string {
+	switch at {
+	case AntennaTypePlayer:
+		return "player"
+	case AntennaTypeMuck:
+		return "muck"
+	case AntennaTypeBoard:
+		return "board"
+	default:
+		return "unknown"
+	}
+}
+
 // GetUnknownAntennaTypeID get unknown antenna type id
 func GetUnknownAntennaTypeID(ctx context.Context, conn *sql.DB) (int64, error) {
 	q := query.New(conn)

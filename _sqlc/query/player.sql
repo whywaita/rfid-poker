@@ -32,3 +32,13 @@ WHERE hand.is_muck = false
 INSERT INTO player (name)
 VALUES (?)
 RETURNING *;
+
+-- name: DeletePlayerWithHandWithCards :exec
+DELETE FROM card
+WHERE hand_id IN (SELECT id FROM hand WHERE player_id = ?);
+
+DELETE FROM hand
+WHERE player_id = ?;
+
+DELETE FROM player
+WHERE id = ?;

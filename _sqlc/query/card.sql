@@ -15,5 +15,8 @@ UPDATE card SET hand_id = ?
 WHERE id = ?
 RETURNING *;
 
+-- name: DeleteBoardCards :exec
+DELETE FROM card WHERE is_board = true;
+
 -- name: DeleteCardAll :exec
 DELETE FROM card;

@@ -23,6 +23,16 @@ func (q *Queries) AddPlayer(ctx context.Context, name string) (Player, error) {
 	return i, err
 }
 
+const deletePlayerWithHandWithCards = `-- name: DeletePlayerWithHandWithCards :exec
+DELETE FROM card
+WHERE hand_id IN (SELECT id FROM hand WHERE player_id = ?)
+`
+
+func (q *Queries) DeletePlayerWithHandWithCards(ctx context.Context, playerID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePlayerWithHandWithCards, playerID)
+	return err
+}
+
 const getPlayer = `-- name: GetPlayer :one
 SELECT id, name FROM player
 WHERE id = ? LIMIT 1

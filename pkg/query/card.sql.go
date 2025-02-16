@@ -33,6 +33,15 @@ func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (int64, error)
 	return id, err
 }
 
+const deleteBoardCards = `-- name: DeleteBoardCards :exec
+DELETE FROM card WHERE is_board = true
+`
+
+func (q *Queries) DeleteBoardCards(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteBoardCards)
+	return err
+}
+
 const deleteCardAll = `-- name: DeleteCardAll :exec
 DELETE FROM card
 `
