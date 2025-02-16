@@ -18,9 +18,11 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Install dependencies
-        run: |
-          sudo apt-get install -y libusb-1.0-0-dev pkg-config
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
       - name: Lint
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -33,3 +35,7 @@ jobs:
           cd ui/
           npm install
           npm run lint
+      - name: Test (Platform.io / C++)
+        run: |
+          cd clients/m5stack
+          pio run
