@@ -60,6 +60,10 @@ func FromSerial(serial string) (string, int, error) {
 		return "", 0, fmt.Errorf("strconv.Atoi(): %w", err)
 	}
 
+	if pairID < 0 {
+		return "", 0, fmt.Errorf("invalid pair ID: %d", pairID)
+	}
+
 	return s[0], pairID, nil
 }
 

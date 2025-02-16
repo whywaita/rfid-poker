@@ -20,7 +20,9 @@ func main() {
 func run() error {
 	ctx := context.Background()
 
-	configor.Load(&config.Conf, "config.yaml")
+	if err := configor.Load(&config.Conf, "config.yaml"); err != nil {
+		return fmt.Errorf("configor.Load(): %w", err)
+	}
 
 	if err := server.Run(ctx); err != nil {
 		return fmt.Errorf("server.Run(ctx): %w", err)

@@ -40,7 +40,7 @@ func HandleGetAdminAntenna(c echo.Context, conn *sql.DB) error {
 		deviceID, pairID, err := store.FromSerial(a.Serial)
 		if err != nil {
 			log.Printf("store.FromSerial(%s): %v", a.Serial, err)
-			return c.JSON(http.StatusInternalServerError, nil)
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
 		respAntenna = append(respAntenna, GetAdminAntennaResponseAntenna{
 			ID:              a.ID,

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strings"
 
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/whywaita/poker-go"
 	"github.com/whywaita/rfid-poker/pkg/query"
 )
@@ -51,7 +51,7 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 			Serial:  serial,
 			IsBoard: false,
 		})
-		if err != nil && !strings.HasPrefix(err.Error(), "UNIQUE constraint failed:") {
+		if err != nil && !sqlgraph.IsUniqueConstraintError(err) {
 			tx.Rollback()
 			return fmt.Errorf("q.AddCard(): %w", err)
 		}
