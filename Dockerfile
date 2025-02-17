@@ -13,4 +13,6 @@ RUN make build
 FROM alpine:latest
 COPY --from=builder /go/github.com/whywaita/rfid-poker/bin/cmd /usr/local/bin/rfid-poker
 
+COPY ["./_sqlc", "/_sqlc"]
+
 CMD ["/usr/local/bin/rfid-poker"]
