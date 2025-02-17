@@ -34,7 +34,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("fetchConfigPath(): %w", err)
 	}
-	defer os.Remove(configFilePath)
 
 	if err := configor.Load(&config.Conf, configFilePath); err != nil {
 		return fmt.Errorf("configor.Load(): %w", err)
