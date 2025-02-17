@@ -8,15 +8,14 @@ import (
 	"log"
 	"sort"
 
+	"github.com/whywaita/rfid-poker/pkg/query"
 	"github.com/whywaita/rfid-poker/pkg/store"
 
-	"github.com/whywaita/rfid-poker/pkg/query"
-
+	"github.com/coder/websocket"
 	"github.com/labstack/echo/v4"
-	"golang.org/x/net/websocket"
 )
 
-// Send is struct for SSE
+// Send is struct for WebSocket sending
 type Send struct {
 	Players []SendPlayer `json:"players"`
 	Board   []SendCard   `json:"board"`
@@ -35,23 +34,32 @@ type SendCard struct {
 
 func ws(c echo.Context, conn *sql.DB, notifyCh chan struct{}) error {
 	q := query.New(conn)
-	websocket.Handler(func(ws *websocket.Conn) {
-		defer ws.Close()
-		ctx := c.Request().Context()
 
-		if err := sendPlayer(ctx, q, ws); err != nil {
-			c.Logger().Errorf(err.Error())
-		}
+	wsConn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{
+		OriginPatterns: []string{"*"},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to accept WebSocket: %w", err)
+	}
+	defer wsConn.Close(websocket.StatusNormalClosure, "")
 
-		for {
-			<-notifyCh
-			err := sendPlayer(ctx, q, ws)
+	ctx := c.Request().Context()
+
+	if err := sendPlayer(ctx, q, wsConn); err != nil {
+		c.Logger().Errorf(err.Error())
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-notifyCh:
+			err := sendPlayer(ctx, q, wsConn)
 			if err != nil {
 				c.Logger().Errorf(err.Error())
 			}
 		}
-	}).ServeHTTP(c.Response(), c.Request())
-	return nil
+	}
 }
 
 func sendPlayer(ctx context.Context, q *query.Queries, ws *websocket.Conn) error {
@@ -66,9 +74,10 @@ func sendPlayer(ctx context.Context, q *query.Queries, ws *websocket.Conn) error
 	}
 
 	log.Println("Send: ", string(b))
-	if err := websocket.Message.Send(ws, string(b)); err != nil {
-		return fmt.Errorf("websocket.Message.Send(): %w", err)
+	if err := ws.Write(ctx, websocket.MessageText, b); err != nil {
+		return fmt.Errorf("ws.Write(): %w", err)
 	}
+
 	return nil
 }
 
