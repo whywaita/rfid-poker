@@ -4,12 +4,12 @@ go 1.24.0
 
 require (
 	entgo.io/ent v0.14.1
+	github.com/coder/websocket v1.8.12
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/jinzhu/configor v1.2.2
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/whywaita/poker-go v0.0.0-20240128181615-ff338443efbd
-	golang.org/x/net v0.35.0
 )
 
 require (
@@ -25,6 +25,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
