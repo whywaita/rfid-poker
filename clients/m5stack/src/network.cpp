@@ -5,7 +5,7 @@
 
 String JsonData;
 int sdstat = 0;
-String i_ssid, i_pass;
+String i_ssid;
 
 std::tuple<String, String> setupNetwork() {
     // Set the cursor to the dynamic display part
@@ -28,10 +28,10 @@ std::tuple<String, String> setupNetwork() {
 
     Serial.println("microSD card initialized.");
 
-    if (SD.exists("/SSID.txt")) {
-        Serial.println("SSID.txt exists.");
+    if (SD.exists("/RFID.txt")) {
+        Serial.println("RFID.txt exists.");
         delay(500);
-        File f = SD.open("/SSID.txt", FILE_READ);
+        File f = SD.open("/RFID.txt", FILE_READ);
 
         if (f) {
             while (f.available())
@@ -41,16 +41,17 @@ std::tuple<String, String> setupNetwork() {
             f.close();
             sdstat = 1;
         } else {
-            M5.Lcd.println("error opening /SSID.txt");
+            M5.Lcd.println("error opening /RFID.txt");
             sdstat = 0;
         }
     } else {
-        M5.Lcd.println("SSID.txt doesn't exit.");
-        Serial.println("SSID.txt doesn't exit.");
+        M5.Lcd.println("RFID.txt doesn't exit.");
+        Serial.println("RFID.txt doesn't exit.");
         sdstat = 0;
     }
 
     String i_host;
+    JsonArray i_ssids;
     if (sdstat == 1) {
         DeserializationError error = deserializeJson(n_jsondata, JsonData);
 
@@ -61,34 +62,55 @@ std::tuple<String, String> setupNetwork() {
         }
         else
         {
-            i_ssid = n_jsondata["ssid"].as<String>();
-            i_pass = n_jsondata["pass"].as<String>();
+            i_ssids = n_jsondata["ssids"].as<JsonArray>();
             i_host = n_jsondata["host"].as<String>();
 
             Serial.println("Can read from JSON Data!");
-            Serial.printf("ssid: %s\n", i_ssid);
-            Serial.println("pass: <masked>");
+            for (JsonVariant ssidVariant : i_ssids)
+            {
+                String ssid = ssidVariant.as<String>();
+                Serial.printf("ssid: %s\n", ssid);
+                Serial.println("pass: <masked>");
+            }
             Serial.printf("host: %s\n", i_host);
         }
 
-        char buf_ssid[33], buf_pass[65];
-        i_ssid.toCharArray(buf_ssid, 33);
-        i_pass.toCharArray(buf_pass, 65);
-
-        WiFi.begin(buf_ssid, buf_pass);
-        M5.Lcd.printf("Connecting to %s\n", i_ssid);
-        Serial.printf("Connecting to %s\n", i_ssid);
-
-        unsigned long startTime = millis();
-        const unsigned long timeout = 30000; // 30 seconds timeout
-        while (WiFi.status() != WL_CONNECTED && (millis() - startTime < timeout))
+        // try to connect to the first available network
+        for (JsonVariant ssidVariant : i_ssids)
         {
-            delay(500);
-            M5.Lcd.print(".");
+            String ssid = ssidVariant["ssid"].as<String>();
+            String pass = ssidVariant["pass"].as<String>();
+
+            char buf_ssid[33], buf_pass[65];
+            ssid.toCharArray(buf_ssid, 33);
+            pass.toCharArray(buf_pass, 65);
+
+            WiFi.begin(buf_ssid, buf_pass);
+            M5.Lcd.printf("Connecting to %s\n", ssid.c_str());
+            Serial.printf("Connecting to %s\n", ssid.c_str());
+
+            unsigned long startTime = millis();
+            const unsigned long timeout = 10000; // 10 seconds timeout
+            while (WiFi.status() != WL_CONNECTED && (millis() - startTime < timeout))
+            {
+                delay(500);
+                M5.Lcd.print(".");
+            }
+            if (WiFi.status() == WL_CONNECTED) {
+                M5.Lcd.println("");
+                M5.Lcd.println("WiFi connected");
+                Serial.println("WiFi connected");
+                i_ssid = ssid; // Save the connected SSID
+                break;
+            } else {
+                M5.Lcd.println("\nWiFi connection timeout");
+            }
         }
+
         if (WiFi.status() != WL_CONNECTED) {
-            M5.Lcd.println("\nWiFi connection timeout");
-            return {"", ""};
+            M5.Lcd.println("Failed to connect to any network");
+            Serial.println("Failed to connect to any network");
+            return {"", ""};  // Return empty strings to indicate failure
         }
 
         M5.Lcd.println("");
