@@ -4,12 +4,20 @@ This is a client for the M5Stack device. It is written in C++.
 
 ## Configure
 
-1. Put `/SSID.txt` file in the root of the SD card.
+1. Put `/RFID.txt` file in the root of the SD card.
 
 ```json
 {
-  "ssid": "your-ssid",
-  "pass": "your-password",
-  "host": "https://your-host", // your server address
+  "ssids": [
+    {
+      "ssid": "your-ssid-1",
+      "pass": "your-password-2"
+    },
+    {
+      "ssid": "your-ssid-2",
+      "pass": "your-password-2"
+    }
+  ],
+  "host": "https://your-host" // your server address
 }
 ```
