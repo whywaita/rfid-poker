@@ -68,7 +68,7 @@ std::tuple<String, String> setupNetwork() {
             Serial.println("Can read from JSON Data!");
             for (JsonVariant ssidVariant : i_ssids)
             {
-                String ssid = ssidVariant.as<String>();
+                String ssid = ssidVariant["ssid"].as<String>();
                 Serial.printf("ssid: %s\n", ssid);
                 Serial.println("pass: <masked>");
             }
