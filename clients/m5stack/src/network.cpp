@@ -75,9 +75,25 @@ std::tuple<String, String> setupNetwork() {
             Serial.printf("host: %s\n", i_host);
         }
 
+        const size_t MAX_SSIDS = 5;
+        if (!n_jsondata.containsKey("ssids") || !n_jsondata.containsKey("host")) {
+            M5.Lcd.println("Missing required fields in config");
+            return {"", ""};
+        }
+
+        JsonArray ssids = n_jsondata["ssids"].as<JsonArray>();
+        if (ssids.size() == 0 || ssids.size() > MAX_SSIDS) {
+            M5.Lcd.println("Invalid number of SSIDs");
+            return {"", ""};
+        }
         // try to connect to the first available network
         for (JsonVariant ssidVariant : i_ssids)
         {
+            if (!ssidVariant.containsKey("ssid") || !ssidVariant.containsKey("pass")) {
+                M5.Lcd.println("Missing SSID or password");
+                return {"", ""};
+            }
+
             String ssid = ssidVariant["ssid"].as<String>();
             String pass = ssidVariant["pass"].as<String>();
 
