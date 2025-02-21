@@ -19,7 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Card struct {
+type PostCardRequest struct {
 	UID      string `json:"uid"`
 	DeviceID string `json:"device_id"`
 	PairID   int    `json:"pair_id"`
@@ -28,7 +28,7 @@ type Card struct {
 func HandleCards(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
 	defer c.Request().Body.Close()
 
-	input := Card{}
+	input := PostCardRequest{}
 	if err := json.NewDecoder(c.Request().Body).Decode(&input); err != nil {
 		log.Printf("invalid request body: %v", err)
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")

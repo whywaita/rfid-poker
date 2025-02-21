@@ -58,7 +58,7 @@ func run() error {
 // DoReq send card data to server
 func DoReq(ctx context.Context, serial string, cards []string, u *url.URL) error {
 	for _, card := range cards {
-		body := server.Card{
+		body := server.PostCardRequest{
 			UID:      card,
 			DeviceID: serial,
 			PairID:   1,

@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/whywaita/rfid-poker/pkg/store"
-
 	"github.com/labstack/echo/v4"
+
 	"github.com/whywaita/rfid-poker/pkg/query"
+	"github.com/whywaita/rfid-poker/pkg/store"
 )
 
 type Antenna struct {
@@ -62,7 +62,7 @@ type PostAdminAntennaRequest struct {
 	AntennaTypeName string `json:"antenna_type_name"`
 }
 
-func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
+func HandlePostAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
 	q := query.New(conn)
 
 	var req PostAdminAntennaRequest
@@ -77,6 +77,28 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
+	// check antenna type name in request is valid
+	if store.GetAntennaType(req.AntennaTypeName) == store.AntennaTypeUnknown {
+		log.Printf("antenna type name %s is unknown", req.AntennaTypeName)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("antenna type name (input: %s) is unknown", req.AntennaTypeName)})
+	}
+
+	storedAntennas, err := q.GetAntenna(c.Request().Context())
+	if err != nil {
+		log.Printf("q.GetAntenna(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// board antenna and muck antenna is only one
+	if req.AntennaTypeName == store.AntennaTypeBoard.String() || req.AntennaTypeName == store.AntennaTypeMuck.String() {
+		for _, a := range storedAntennas {
+			if a.AntennaTypeName == req.AntennaTypeName {
+				log.Printf("antenna type name %s is already exists", req.AntennaTypeName)
+				return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("antenna type name %s is already exists", req.AntennaTypeName)})
+			}
+		}
+	}
+
 	antenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -84,12 +106,6 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		}
 		log.Printf("store.GetUnknownAntennaTypeID(): %v", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-
-	// check antenna type name
-	if store.GetAntennaType(req.AntennaTypeName) == store.AntennaTypeUnknown {
-		log.Printf("antenna type name %s is unknown", req.AntennaTypeName)
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("antenna type name (input: %s) is unknown", req.AntennaTypeName)})
 	}
 
 	if _, err := q.GetAntennaTypeIdByAntennaTypeName(c.Request().Context(), req.AntennaTypeName); err != nil {
@@ -113,6 +129,8 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		log.Printf("cleansingObjectWithChangeAntennaType(): %v", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+
+	updatedCh <- struct{}{}
 
 	respAntenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
 	if err != nil {
@@ -174,4 +192,40 @@ func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, ant
 	}
 
 	return nil
+}
+
+func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
+	q := query.New(conn)
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		log.Printf("strconv.Atoi(%s): %v", c.Param("id"), err)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	antenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		}
+		log.Printf("q.GetAntennaById(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := q.DeleteAntennaByID(c.Request().Context(), int32(id)); err != nil {
+		log.Printf("q.DeleteAntennaById(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := cleansingObjectWithChangeAntennaType(
+		c.Request().Context(), conn, antenna.ID,
+		store.GetAntennaType(antenna.AntennaTypeName),
+		store.AntennaTypeUnknown,
+	); err != nil {
+		log.Printf("cleansingObjectWithChangeAntennaType(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	updatedCh <- struct{}{}
+	return c.JSON(http.StatusNoContent, nil)
 }
