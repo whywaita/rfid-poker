@@ -100,6 +100,56 @@ func (q *Queries) GetHandNotMucked(ctx context.Context) ([]GetHandNotMuckedRow, 
 	return items, nil
 }
 
+const getHandWithCardByPlayerID = `-- name: GetHandWithCardByPlayerID :one
+SELECT
+    hand.id AS hand_id,
+    hand.player_id,
+    hand.is_muck,
+    equity,
+    card_a.card_suit AS card_a_suit,
+    card_a.card_rank AS card_a_rank,
+    card_a.is_board AS card_a_is_board,
+    card_b.card_suit AS card_b_suit,
+    card_b.card_rank AS card_b_rank,
+    card_b.is_board AS card_b_is_board
+FROM hand
+         JOIN card AS card_a ON hand.id = card_a.hand_id
+         JOIN card AS card_b ON hand.id = card_b.hand_id
+WHERE hand.player_id = ?
+  AND card_a.id < card_b.id
+`
+
+type GetHandWithCardByPlayerIDRow struct {
+	HandID       int32
+	PlayerID     int32
+	IsMuck       bool
+	Equity       sql.NullFloat64
+	CardASuit    string
+	CardARank    string
+	CardAIsBoard bool
+	CardBSuit    string
+	CardBRank    string
+	CardBIsBoard bool
+}
+
+func (q *Queries) GetHandWithCardByPlayerID(ctx context.Context, playerID int32) (GetHandWithCardByPlayerIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getHandWithCardByPlayerID, playerID)
+	var i GetHandWithCardByPlayerIDRow
+	err := row.Scan(
+		&i.HandID,
+		&i.PlayerID,
+		&i.IsMuck,
+		&i.Equity,
+		&i.CardASuit,
+		&i.CardARank,
+		&i.CardAIsBoard,
+		&i.CardBSuit,
+		&i.CardBRank,
+		&i.CardBIsBoard,
+	)
+	return i, err
+}
+
 const muckHand = `-- name: MuckHand :exec
 UPDATE hand SET is_muck = true WHERE id = ?
 `

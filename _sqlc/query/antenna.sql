@@ -34,5 +34,8 @@ SELECT id FROM antenna_type WHERE name = 'unknown';
 -- name: GetAntennaTypeIdByAntennaTypeName :one
 SELECT id FROM antenna_type WHERE name = ?;
 
+-- name: DeleteAntennaByID :exec
+DELETE FROM antenna WHERE id = ?;
+
 -- name: ResetAntenna :exec
 DELETE FROM antenna;

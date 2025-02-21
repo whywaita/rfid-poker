@@ -70,7 +70,7 @@ func FromSerial(serial string) (string, int, error) {
 type AntennaType int
 
 const (
-	AntennaTypeUnknown = iota
+	AntennaTypeUnknown AntennaType = iota
 	AntennaTypePlayer
 	AntennaTypeMuck
 	AntennaTypeBoard

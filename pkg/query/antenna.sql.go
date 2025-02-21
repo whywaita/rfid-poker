@@ -25,6 +25,15 @@ func (q *Queries) AddNewAntenna(ctx context.Context, arg AddNewAntennaParams) er
 	return err
 }
 
+const deleteAntennaByID = `-- name: DeleteAntennaByID :exec
+DELETE FROM antenna WHERE id = ?
+`
+
+func (q *Queries) DeleteAntennaByID(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteAntennaByID, id)
+	return err
+}
+
 const getAntenna = `-- name: GetAntenna :many
 SELECT antenna.id, serial, antenna_type_id, player_id, antenna_type.name AS antenna_type_name
 FROM antenna
