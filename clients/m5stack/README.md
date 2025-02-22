@@ -2,9 +2,11 @@
 
 This is a client for the M5Stack device. It is written in C++.
 
+We developed with platformio.
+
 ## Configure
 
-1. Put `/RFID.txt` file in the root of the SD card.
+1. Put `/RFID.txt` file in the root of the SD card (as TF card).
 
 ```json
 {
@@ -21,3 +23,5 @@ This is a client for the M5Stack device. It is written in C++.
   "host": "https://your-host" // your server address
 }
 ```
+
+Device will connect to the SSID in the order of the list.
