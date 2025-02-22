@@ -25,6 +25,10 @@ export class ApiService {
     constructor(private baseUrl: string) {}
   
     private async handleResponse<T>(response: Response): Promise<T> {
+      if (response.status === 204) {
+        // No content
+        return {} as T;
+      }
       if (response.status === 404) {
         throw new Error('Not found');
       }
@@ -76,8 +80,8 @@ export class ApiService {
     }
 
     async muckHand(playerId: number): Promise<void> {
-      const response = await fetch(`${this.baseUrl}/admin/player/${playerId}/hand/muck`, {
-        method: 'POST'
+      const response = await fetch(`${this.baseUrl}/admin/player/${playerId}/hand`, {
+        method: 'DELETE'
       });
       return this.handleResponse(response);
     }
