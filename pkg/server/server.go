@@ -29,7 +29,8 @@ func Run(ctx context.Context) error {
 		log.Println(http.ListenAndServe(":6060", nil))
 	}()
 
-	updatedCh := make(chan struct{})
+	// unlimited channel
+	updatedCh := make(chan struct{}, 1000)
 
 	conn, err := connectMySQL()
 	if err != nil {
@@ -41,6 +42,19 @@ func Run(ctx context.Context) error {
 
 	e := echo.New()
 	e.Use(middleware.Logger())
+	e.Use(middleware.CORSWithConfig(
+		middleware.CORSConfig{
+			AllowOrigins: []string{"*"},
+			AllowMethods: []string{
+				http.MethodGet,
+				http.MethodHead,
+				http.MethodPost,
+				http.MethodDelete,
+				http.MethodOptions,
+			},
+			AllowHeaders:     []string{"Content-Type", "Authorization"},
+			AllowCredentials: true,
+		}))
 
 	// For client
 	e.POST("/device/boot", func(c echo.Context) error {
@@ -55,13 +69,25 @@ func Run(ctx context.Context) error {
 		return HandleGetAdminAntenna(c, conn)
 	})
 	e.POST("/admin/antenna/:id", func(c echo.Context) error {
-		return HandlePostAdminAntenna(c, conn)
+		return HandlePostAdminAntenna(c, conn, updatedCh)
+	})
+	e.DELETE("/admin/antenna/:id", func(c echo.Context) error {
+		return HandleDeleteAdminAntenna(c, conn, updatedCh)
 	})
 	e.GET("/admin/player", func(c echo.Context) error {
 		return HandleGetAdminPlayers(c, conn)
 	})
 	e.POST("/admin/player/:id", func(c echo.Context) error {
-		return HandlePostAdminPlayer(c, conn)
+		return HandlePostAdminPlayer(c, conn, updatedCh)
+	})
+	e.GET("/admin/player/:id/hand", func(c echo.Context) error {
+		return HandleGetAdminPlayerHand(c, conn)
+	})
+	e.DELETE("/admin/player/:id/hand", func(c echo.Context) error {
+		return HandleDeleteAdminPlayerHand(c, conn, updatedCh)
+	})
+	e.DELETE("/admin/game", func(c echo.Context) error {
+		return HandleDeleteAdminGame(c, conn, updatedCh)
 	})
 
 	e.GET("/ws", func(c echo.Context) error {
