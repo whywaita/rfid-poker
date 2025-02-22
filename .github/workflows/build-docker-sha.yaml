@@ -31,21 +31,3 @@ jobs:
         with:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-
-      - name: Login to sakuracr registry (whywaita.sakuracr.jp)
-        uses: docker/login-action@v3
-        with:
-          registry: whywaita.sakuracr.jp
-          username: github-actions
-          password: ${{ secrets.SAKURACR_PASSWORD }}
-      - uses: docker/metadata-action@v5
-        id: meta-sakuracr
-        with:
-          images: whywaita.sakuracr.jp/rfid-poker
-          tags: |
-            type=sha
-      - name: Build container image (whywaita.sakuracr.jp)
-        uses: docker/build-push-action@v6
-        with:
-          push: true
-          tags: ${{ steps.meta-sakuracr.outputs.tags }}
