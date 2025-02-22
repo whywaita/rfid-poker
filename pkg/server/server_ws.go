@@ -1,10 +1,12 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"sort"
 
@@ -74,8 +76,17 @@ func sendPlayer(ctx context.Context, q *query.Queries, ws *websocket.Conn) error
 	}
 
 	log.Println("Send: ", string(b))
-	if err := ws.Write(ctx, websocket.MessageText, b); err != nil {
-		return fmt.Errorf("ws.Write(): %w", err)
+	w, err := ws.Writer(ctx, websocket.MessageText)
+	if err != nil {
+		return fmt.Errorf("ws.Writer(): %w", err)
+	}
+
+	if _, err := io.Copy(w, bytes.NewBuffer(b)); err != nil {
+		return fmt.Errorf("io.Copy(): %w", err)
+	}
+
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("w.Close(): %w", err)
 	}
 
 	return nil
