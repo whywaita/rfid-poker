@@ -28,7 +28,7 @@ card_ids:  ## UID of NEC card
 
 ### Run the server
 
-Execute binary with environment variables.
+Run the server using the following environment variables
 
 ```bash
 # Set the path to the config file
@@ -140,7 +140,7 @@ The server will send a message to the device to read a card.
 
 ### ui
 
-Ths ui is a Next.js application that runs on a client.
+This ui is a Next.js application that runs on a client.
 
 [ui](./ui) directory is a Next.js application.
 

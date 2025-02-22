@@ -2,7 +2,7 @@
 
 This is a client for the M5Stack device. It is written in C++.
 
-We developed with platformio.
+We developed with PlatformIO.
 
 ## Configure
 
@@ -24,4 +24,4 @@ We developed with platformio.
 }
 ```
 
-Device will connect to the SSID in the order of the list.
+The device will connect to the SSID in the order of the list.
