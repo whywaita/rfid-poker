@@ -10,13 +10,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func HandleDeleteAdminGame(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
+func HandleDeleteAdminGame(c echo.Context, conn *sql.DB) error {
 	if err := store.ClearGame(c.Request().Context(), conn); err != nil {
 		log.Printf("failed to delete game: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete game")
 	}
 
-	updatedCh <- struct{}{}
+	notifyClients()
 
 	return c.JSON(http.StatusNoContent, nil)
 }

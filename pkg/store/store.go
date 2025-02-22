@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/whywaita/poker-go"
@@ -20,106 +19,6 @@ type Stored struct {
 var (
 	calcEquityMu sync.RWMutex
 )
-
-func calcEquity(ctx context.Context, q *query.Queries, updatedCh chan struct{}) error {
-	calcEquityMu.Lock()
-	defer calcEquityMu.Unlock()
-	playersRow, err := q.GetPlayersWithHand(ctx)
-	if err != nil {
-		return fmt.Errorf("db.GetPlayersWithHand(): %w", err)
-	}
-
-	players := make([]poker.Player, 0, len(playersRow))
-
-	// check if one of the players has equity zero
-	hasEquityZero := false
-	for _, p := range playersRow {
-		if !p.Equity.Valid && !hasEquityZero {
-			hasEquityZero = true
-		}
-		pgCardA, err := query.Card{
-			CardSuit: p.CardASuit,
-			CardRank: p.CardARank,
-			IsBoard:  p.CardAIsBoard,
-		}.ToPokerGo()
-		if err != nil {
-			return fmt.Errorf("cardA.ToPokerGo(): %w", err)
-		}
-		pgCardB, err := query.Card{
-			CardSuit: p.CardBSuit,
-			CardRank: p.CardBRank,
-			IsBoard:  p.CardBIsBoard,
-		}.ToPokerGo()
-		if err != nil {
-			return fmt.Errorf("cardB.ToPokerGo(): %w", err)
-		}
-
-		players = append(players, poker.Player{
-			Name: p.Name,
-			Hand: []poker.Card{
-				*pgCardA,
-				*pgCardB,
-			},
-		})
-	}
-
-	if hasEquityZero {
-		// if one of the players has equity zero, need to calculate equity
-		// So will reset all equity
-		if err := q.ResetEquity(ctx); err != nil {
-			return fmt.Errorf("db.ResetEquity(): %w", err)
-		}
-		updatedCh <- struct{}{}
-	}
-
-	if len(players) <= 1 {
-		// if players is less than 2, no need to calculate equity
-		if err := q.ResetEquity(ctx); err != nil {
-			return fmt.Errorf("db.ResetEquity(): %w", err)
-		}
-		updatedCh <- struct{}{}
-		return nil
-	}
-
-	board, err := GetBoard(ctx, q)
-	if err != nil {
-		return fmt.Errorf("GetBoard(): %w", err)
-	}
-
-	log.Printf("Start EvaluateEquityByMadeHandWithCommunity(%+v, %+v)", players, board)
-	equities, err := poker.EvaluateEquityByMadeHandWithCommunity(players, board)
-	if err != nil {
-		return fmt.Errorf("poker.EvaluateEquityByMadeHandWithCommunity: %w", err)
-	}
-	log.Println("End EvaluateEquityByMadeHand")
-
-	for i, p := range playersRow {
-		if err := q.UpdateEquity(ctx, query.UpdateEquityParams{
-			Equity: sql.NullFloat64{Float64: equities[i], Valid: true},
-			ID:     p.HandID,
-		}); err != nil {
-			return fmt.Errorf("db.UpdatePlayerEquity(hand_id: %v): %w", p.HandID, err)
-		}
-	}
-
-	updatedCh <- struct{}{}
-
-	return nil
-}
-
-//func isStoredCard(ctx context.Context, q *query.Queries, card poker.Card) (bool, error) {
-//	_, err := q.GetCardByRankSuit(ctx, query.GetCardByRankSuitParams{
-//		Rank: card.Rank.String(),
-//		Suit: card.Suit.String(),
-//	})
-//	if err != nil {
-//		if errors.Is(err, sql.ErrNoRows) {
-//			return false, nil
-//		}
-//		return false, fmt.Errorf("db.GetCardByRankSuit(): %w", err)
-//	}
-//	return true, nil
-//}
 
 func ClearGame(ctx context.Context, conn *sql.DB) error {
 	db := query.New(conn)

@@ -107,9 +107,18 @@ func HandleDeleteAdminPlayerHand(c echo.Context, conn *sql.DB, updatedCh chan st
 			Suit: poker.UnmarshalSuitString(hand.CardBSuit),
 			Rank: poker.UnmarshalRankString(hand.CardBRank),
 		},
-	}, updatedCh); err != nil {
+	}); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+
+	notifyClients()
+
+	go func() {
+		if err := store.CalcEquity(c.Request().Context(), query.New(conn)); err != nil {
+			log.Printf("calcEquity: %v", err)
+		}
+		notifyClients()
+	}()
 
 	return c.JSON(http.StatusNoContent, nil)
 }

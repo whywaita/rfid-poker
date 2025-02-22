@@ -59,7 +59,7 @@ type PostAdminPlayerResponse struct {
 	Player Player `json:"player"`
 }
 
-func HandlePostAdminPlayer(c echo.Context, conn *sql.DB, updateCh chan struct{}) error {
+func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
 	q := query.New(conn)
 
 	var req PostAdminPlayerRequest
@@ -118,7 +118,7 @@ func HandlePostAdminPlayer(c echo.Context, conn *sql.DB, updateCh chan struct{})
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	updateCh <- struct{}{}
+	notifyClients()
 
 	return c.JSON(http.StatusOK, PostAdminPlayerResponse{
 		Player: Player{

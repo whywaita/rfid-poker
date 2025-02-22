@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"slices"
 	"sort"
 
@@ -17,10 +16,10 @@ var (
 	ErrWillGoToNextGame = errors.New("will go to next game")
 )
 
-func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial string, updatedCh chan struct{}) error {
+func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial string) (bool, error) {
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("conn.BeginTx(): %w", err)
+		return false, fmt.Errorf("conn.BeginTx(): %w", err)
 	}
 	defer func() {
 		if r := recover(); r != nil || err != nil {
@@ -32,14 +31,14 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial stri
 	nowBoard, err := GetBoardAll(ctx, qWithTx)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("GetBoard(): %w", err)
+		return false, fmt.Errorf("GetBoard(): %w", err)
 	}
 
 	board, needInsert, isUpdated := concatCards(nowBoard, cards)
 	if len(board) >= 6 {
 		// load 7 cards. will go to next game.
 		tx.Rollback()
-		return ErrWillGoToNextGame
+		return false, ErrWillGoToNextGame
 	}
 
 	if len(needInsert) > 0 {
@@ -51,24 +50,16 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial stri
 			})
 			if err != nil {
 				tx.Rollback()
-				return fmt.Errorf("query.AddCardToBoard(): %w", err)
+				return false, fmt.Errorf("query.AddCardToBoard(): %w", err)
 			}
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("tx.Commit(): %w", err)
+		return false, fmt.Errorf("tx.Commit(): %w", err)
 	}
 
-	updatedCh <- struct{}{}
-
-	if isUpdated {
-		if err := calcEquity(ctx, query.New(conn), updatedCh); err != nil {
-			log.Printf("calcEquity: %v", err)
-			return fmt.Errorf("calcEquity: %w", err)
-		}
-	}
-	return nil
+	return isUpdated, nil
 }
 
 func GetBoardAll(ctx context.Context, q *query.Queries) ([]poker.Card, error) {

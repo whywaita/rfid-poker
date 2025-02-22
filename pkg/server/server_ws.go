@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"sort"
+	"sync"
 
 	"github.com/whywaita/rfid-poker/pkg/query"
 	"github.com/whywaita/rfid-poker/pkg/store"
@@ -16,6 +17,44 @@ import (
 	"github.com/coder/websocket"
 	"github.com/labstack/echo/v4"
 )
+
+// WebSocketManager manages WebSocket connections
+type WebSocketManager struct {
+	mu       sync.Mutex
+	clients  map[*websocket.Conn]struct{}
+	notifyCh chan struct{}
+}
+
+var wsManager = &WebSocketManager{
+	clients:  make(map[*websocket.Conn]struct{}),
+	notifyCh: make(chan struct{}, 1000), // バッファ付きにして非同期に通知を処理
+}
+
+func (m *WebSocketManager) addClient(ws *websocket.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.clients[ws] = struct{}{}
+}
+
+func (m *WebSocketManager) removeClient(ws *websocket.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.clients, ws)
+}
+
+// broadcast sends a message to all WebSocket clients
+func (m *WebSocketManager) broadcast(q *query.Queries) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for client := range m.clients {
+		go func(ws *websocket.Conn) {
+			if err := sendPlayer(context.Background(), q, ws); err != nil {
+				log.Printf("Failed to send update to WebSocket: %v", err)
+			}
+		}(client)
+	}
+}
 
 // Send is struct for WebSocket sending
 type Send struct {
@@ -45,6 +84,9 @@ func ws(c echo.Context, conn *sql.DB, notifyCh chan struct{}) error {
 	}
 	defer wsConn.Close(websocket.StatusNormalClosure, "")
 
+	wsManager.addClient(wsConn)
+	defer wsManager.removeClient(wsConn)
+
 	ctx := c.Request().Context()
 
 	if err := sendPlayer(ctx, q, wsConn); err != nil {
@@ -55,12 +97,17 @@ func ws(c echo.Context, conn *sql.DB, notifyCh chan struct{}) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-notifyCh:
-			err := sendPlayer(ctx, q, wsConn)
-			if err != nil {
-				c.Logger().Errorf(err.Error())
-			}
+		case <-wsManager.notifyCh:
+			wsManager.broadcast(q)
 		}
+	}
+}
+
+func notifyClients() {
+	select {
+	case wsManager.notifyCh <- struct{}{}:
+	default:
+		// skip if the channel is full
 	}
 }
 
