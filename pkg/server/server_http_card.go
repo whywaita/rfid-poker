@@ -25,7 +25,7 @@ type PostCardRequest struct {
 	PairID   int    `json:"pair_id"`
 }
 
-func HandleCards(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
+func HandleCards(c echo.Context, conn *sql.DB) error {
 	defer c.Request().Body.Close()
 
 	input := PostCardRequest{}
@@ -49,7 +49,7 @@ func HandleCards(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
 
 	uid := strings.ReplaceAll(input.UID, " ", "")
 
-	if err := processCard(c.Request().Context(), conn, config.Conf, uid, input.DeviceID, input.PairID, updatedCh); err != nil {
+	if err := processCard(c.Request().Context(), conn, config.Conf, uid, input.DeviceID, input.PairID); err != nil {
 		log.Printf("failed to process card: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to process card")
 	}
@@ -57,7 +57,7 @@ func HandleCards(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
 	return c.JSON(http.StatusOK, "success to receive card")
 }
 
-func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string, deviceID string, pairID int, updatedCh chan struct{}) error {
+func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string, deviceID string, pairID int) error {
 	pcard, err := playercards.LoadPlayerCard(uid, cc.CardIDs)
 	if err != nil {
 		return fmt.Errorf("playercards.LoadPlayerCard(%s, cardConfigs): %w", uid, err)
@@ -135,9 +135,17 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 				return nil
 			}
 
-			if err := store.AddHand(ctx, conn, []poker.Card{storedCards[0], card}, serial, updatedCh); err != nil {
+			if err := store.AddHand(ctx, conn, []poker.Card{storedCards[0], card}, serial); err != nil {
 				return fmt.Errorf("store.AddHand(): %w", err)
 			}
+			notifyClients()
+
+			go func() {
+				if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
+					log.Printf("calcEquity: %v", err)
+				}
+				notifyClients()
+			}()
 		}
 	case "muck":
 		storedCards, err := store.GetCardBySerial(ctx, conn, serial)
@@ -150,24 +158,43 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 				return fmt.Errorf("store.AddCard(): %w", err)
 			}
 		case len(storedCards) == 1 && storedCards[0].Rank != card.Rank && storedCards[0].Suit != card.Suit: // not same card
-			if err := store.MuckPlayer(ctx, conn, []poker.Card{storedCards[0], card}, updatedCh); err != nil {
+			if err := store.MuckPlayer(ctx, conn, []poker.Card{storedCards[0], card}); err != nil {
 				return fmt.Errorf("store.MuckPlayer(): %w", err)
 			}
+			notifyClients()
+
+			go func() {
+				if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
+					log.Printf("calcEquity: %v", err)
+				}
+				notifyClients()
+			}()
 		}
 	case "board":
 		// Send anyway if board
-		if err := store.AddBoard(ctx, conn, []poker.Card{card}, serial, updatedCh); err != nil {
+		isUpdated, err := store.AddBoard(ctx, conn, []poker.Card{card}, serial)
+		if err != nil {
 			if errors.Is(err, store.ErrWillGoToNextGame) {
 				// go to next game
 				if err := store.ClearGame(ctx, conn); err != nil {
 					return fmt.Errorf("store.ClearGame(): %w", err)
 				}
-				updatedCh <- struct{}{}
+				notifyClients()
 				return nil
 			}
 
 			return fmt.Errorf("store.AddBoard(): %w", err)
 		}
+		notifyClients()
+
+		go func(isUpdated bool) {
+			if isUpdated {
+				if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
+					log.Printf("calcEquity: %v", err)
+				}
+				notifyClients()
+			}
+		}(isUpdated)
 	case "unknown":
 		log.Printf("unknown type antenna (serial: %s)", serial)
 	}

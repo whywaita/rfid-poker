@@ -61,7 +61,7 @@ func Run(ctx context.Context) error {
 		return HandleDeviceBoot(c, conn)
 	})
 	e.POST("/card", func(c echo.Context) error {
-		return HandleCards(c, conn, updatedCh)
+		return HandleCards(c, conn)
 	})
 
 	// For admin
@@ -69,16 +69,16 @@ func Run(ctx context.Context) error {
 		return HandleGetAdminAntenna(c, conn)
 	})
 	e.POST("/admin/antenna/:id", func(c echo.Context) error {
-		return HandlePostAdminAntenna(c, conn, updatedCh)
+		return HandlePostAdminAntenna(c, conn)
 	})
 	e.DELETE("/admin/antenna/:id", func(c echo.Context) error {
-		return HandleDeleteAdminAntenna(c, conn, updatedCh)
+		return HandleDeleteAdminAntenna(c, conn)
 	})
 	e.GET("/admin/player", func(c echo.Context) error {
 		return HandleGetAdminPlayers(c, conn)
 	})
 	e.POST("/admin/player/:id", func(c echo.Context) error {
-		return HandlePostAdminPlayer(c, conn, updatedCh)
+		return HandlePostAdminPlayer(c, conn)
 	})
 	e.GET("/admin/player/:id/hand", func(c echo.Context) error {
 		return HandleGetAdminPlayerHand(c, conn)
@@ -87,7 +87,7 @@ func Run(ctx context.Context) error {
 		return HandleDeleteAdminPlayerHand(c, conn, updatedCh)
 	})
 	e.DELETE("/admin/game", func(c echo.Context) error {
-		return HandleDeleteAdminGame(c, conn, updatedCh)
+		return HandleDeleteAdminGame(c, conn)
 	})
 
 	e.GET("/ws", func(c echo.Context) error {

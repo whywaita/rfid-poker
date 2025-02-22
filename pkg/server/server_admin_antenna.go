@@ -62,7 +62,7 @@ type PostAdminAntennaRequest struct {
 	AntennaTypeName string `json:"antenna_type_name"`
 }
 
-func HandlePostAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
+func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 	q := query.New(conn)
 
 	var req PostAdminAntennaRequest
@@ -130,7 +130,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	updatedCh <- struct{}{}
+	notifyClients()
 
 	respAntenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
 	if err != nil {
@@ -192,7 +192,7 @@ func cleansingObjectWithChangeAntennaType(ctx context.Context, q *query.Queries,
 	return nil
 }
 
-func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
+func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Printf("strconv.Atoi(%s): %v", c.Param("id"), err)
@@ -239,6 +239,6 @@ func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struc
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	updatedCh <- struct{}{}
+	notifyClients()
 	return c.JSON(http.StatusNoContent, nil)
 }
