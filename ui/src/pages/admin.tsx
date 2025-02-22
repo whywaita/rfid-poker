@@ -2,37 +2,7 @@ import { useState, useEffect } from 'react';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ConnectionModal from '@/components/ConnectionModal';
 import Card, { CardType } from '@/components/Cards';
-
-type ApiPlayerType = {
-  id: number;
-  name: string;
-  device_id: string;
-  pair_id: number;
-};
-
-type ApiAntennaType = {
-  id: number;
-  device_id: string;
-  pair_id: number;
-  antenna_type_name: string;
-};
-
-type ApiPlayersResponse = {
-  players: ApiPlayerType[];
-};
-
-type ApiAntennaResponse = {
-  antenna: ApiAntennaType[];
-};
-
-type ApiHandResponse = {
-  hand: {
-    id: number;
-    player_id: number;
-    cards: CardType[];
-    is_muck: boolean;
-  };
-};
+import { ApiService, ApiPlayerType, ApiAntennaType } from '@/services/api';
 
 const ANTENNA_TYPES = ['player', 'muck', 'board', 'unknown'] as const;
 type AntennaTypeName = typeof ANTENNA_TYPES[number];
@@ -49,49 +19,79 @@ export default function Admin() {
   const [antennas, setAntennas] = useState<ApiAntennaType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playerHands, setPlayerHands] = useState<{[key: number]: {cards: CardType[], is_muck: boolean, error?: string}}>({});
+  const [api, setApi] = useState<ApiService | null>(null);
 
   useEffect(() => {
-    const abortController = new AbortController();
-
-    const fetchData = async () => {
-      try {
-        const storedHostname = localStorage.getItem("hostname");
-        if (storedHostname) {
-          setHostname(storedHostname);
-          setModalOpen(false);
-          fetchPlayers(storedHostname);
-          fetchAntennas(storedHostname);
-          setError(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch data');
-      }
-    };
-
-    fetchData();
-  
-    return () => abortController.abort();
+    const storedHostname = localStorage.getItem("hostname");
+    if (storedHostname) {
+      handleHostnameSubmit(storedHostname);
+    }
   }, []);
 
   useEffect(() => {
-    if (hostname && players.length > 0) {
+    if (api && players.length > 0) {
       players.forEach(player => {
         fetchPlayerHand(player.id);
       });
     }
-  }, [hostname, players]);
+  }, [api, players]);
 
   const handleHostnameSubmit = (inputHostname: string) => {
+    const httpUrl = getHttpUrl(inputHostname);
     setHostname(inputHostname);
     localStorage.setItem("hostname", inputHostname);
-    fetchPlayers(inputHostname);
-    fetchAntennas(inputHostname);
+    const apiService = new ApiService(httpUrl);
+    setApi(apiService);
+    setModalOpen(false);
+    fetchData(apiService);
+  };
+
+  const fetchData = async (apiService: ApiService) => {
+    try {
+      const [playersResponse, antennasResponse] = await Promise.all([
+        apiService.getPlayers(),
+        apiService.getAntennas()
+      ]);
+      setPlayers(playersResponse.players);
+      setAntennas(antennasResponse.antenna);
+      setError(null);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch data');
+    }
+  };
+
+  const fetchPlayerHand = async (playerId: number) => {
+    if (!api) return;
+    try {
+      const response = await api.getPlayerHand(playerId);
+      setPlayerHands(prev => ({
+        ...prev,
+        [playerId]: {
+          cards: response.hand.cards,
+          is_muck: response.hand.is_muck
+        }
+      }));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Not found') {
+        setPlayerHands(prev => ({
+          ...prev,
+          [playerId]: {
+            cards: [],
+            is_muck: false,
+            error: 'Hand not found (404)'
+          }
+        }));
+        return;
+      }
+      console.error(`Failed to fetch hand for player ${playerId}:`, error);
+    }
   };
 
   function removeHostname() {
     localStorage.removeItem("hostname");
     setHostname("");
+    setApi(null);
     setModalOpen(true);
   }
 
@@ -104,92 +104,12 @@ export default function Admin() {
     return wsUrl;
   };
 
-  const fetchPlayerHand = async (playerId: number) => {
-    try {
-      const httpUrl = getHttpUrl(hostname);
-      const response = await fetch(`${httpUrl}/admin/player/${playerId}/hand`);
-      if (response.status === 404) {
-        setPlayerHands(prev => ({
-          ...prev,
-          [playerId]: {
-            cards: [],
-            is_muck: false,
-            error: 'Hand not found (404)'
-          }
-        }));
-        return;
-      }
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch player hand');
-      }
-      const data: ApiHandResponse = await response.json();
-      setPlayerHands(prev => ({
-        ...prev,
-        [playerId]: {
-          cards: data.hand.cards,
-          is_muck: data.hand.is_muck
-        }
-      }));
-    } catch (error) {
-      console.error(`Failed to fetch hand for player ${playerId}:`, error);
-    }
-  };
-
-  const fetchAntennas = async (host: string) => {
-    try {
-      const httpUrl = getHttpUrl(host);
-      const response = await fetch(`${httpUrl}/admin/antenna`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch antennas');
-      }
-      const data: ApiAntennaResponse = await response.json();
-      setAntennas(data.antenna);
-      setError(null);
-    } catch (error) {
-      console.error('Failed to fetch antennas:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch antennas');
-    }
-  };
-
-  const fetchPlayers = async (host: string) => {
-    try {
-      const httpUrl = getHttpUrl(host);
-      const response = await fetch(`${httpUrl}/admin/player`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch players');
-      }
-      const data: ApiPlayersResponse = await response.json();
-      setPlayers(data.players);
-      setError(null);
-    } catch (error) {
-      console.error('Failed to fetch players:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch players');
-    }
-  };
-
   const handlePlayerSubmit = async (player: ApiPlayerType, newName: string) => {
+    if (!api) return;
     try {
-      const httpUrl = getHttpUrl(hostname);
-      const response = await fetch(`${httpUrl}/admin/player/${player.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newName
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update player name');
-      }
-
-      // Refresh player list after successful update
-      await fetchPlayers(hostname);
+      await api.updatePlayer(player.id, newName);
+      const { players } = await api.getPlayers();
+      setPlayers(players);
       setError(null);
     } catch (error) {
       console.error('Failed to update player name:', error);
@@ -198,25 +118,11 @@ export default function Admin() {
   };
 
   const handleAntennaTypeSubmit = async (antenna: ApiAntennaType, newType: AntennaTypeName) => {
+    if (!api) return;
     try {
-      const httpUrl = getHttpUrl(hostname);
-      const response = await fetch(`${httpUrl}/admin/antenna/${antenna.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          antenna_type_name: newType
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update antenna type');
-      }
-
-      // Refresh antenna list after successful update
-      await fetchAntennas(hostname);
+      await api.updateAntennaType(antenna.id, newType);
+      const { antenna: updatedAntennas } = await api.getAntennas();
+      setAntennas(updatedAntennas);
       setError(null);
     } catch (error) {
       console.error('Failed to update antenna type:', error);
@@ -225,19 +131,11 @@ export default function Admin() {
   };
 
   const handleDeleteAntenna = async (antennaId: number) => {
+    if (!api) return;
     try {
-      const httpUrl = getHttpUrl(hostname);
-      const response = await fetch(`${httpUrl}/admin/antenna/${antennaId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete antenna');
-      }
-
-      // Refresh antenna list after successful deletion
-      await fetchAntennas(hostname);
+      await api.deleteAntenna(antennaId);
+      const { antenna } = await api.getAntennas();
+      setAntennas(antenna);
       setError(null);
       setConfirmAntennaDeleteModal({open: false, antennaId: null});
     } catch (error) {
@@ -248,18 +146,9 @@ export default function Admin() {
   };
 
   const handleMuckHand = async (playerId: number) => {
+    if (!api) return;
     try {
-      const httpUrl = getHttpUrl(hostname);
-      const response = await fetch(`${httpUrl}/admin/player/${playerId}/hand`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to muck hand');
-      }
-
-      // Refresh player hand after successful muck
+      await api.muckHand(playerId);
       await fetchPlayerHand(playerId);
       setError(null);
     } catch (error) {
@@ -269,19 +158,11 @@ export default function Admin() {
   };
 
   const handleResetGame = async () => {
+    if (!api) return;
     try {
-      const httpUrl = getHttpUrl(hostname);
-      const response = await fetch(`${httpUrl}/admin/game`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to reset game');
-      }
-
-      // Refresh player list after successful reset
-      await fetchPlayers(hostname);
+      await api.resetGame();
+      const { players } = await api.getPlayers();
+      setPlayers(players);
       setError(null);
       setConfirmModalOpen(false);
     } catch (error) {
