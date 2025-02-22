@@ -51,14 +51,21 @@ export default function Admin() {
   const [playerHands, setPlayerHands] = useState<{[key: number]: {cards: CardType[], is_muck: boolean, error?: string}}>({});
 
   useEffect(() => {
-    const storedHostname = localStorage.getItem("hostname");
-    if (storedHostname) {
-      setHostname(storedHostname);
-      setModalOpen(false);
-      fetchPlayers(storedHostname);
-      fetchAntennas(storedHostname);
-    }
-    return () => {};
+    const abortController = new AbortController();
+
+    const fetchData = async () => {
+      const storedHostname = localStorage.getItem("hostname");
+      if (storedHostname) {
+        setHostname(storedHostname);
+        setModalOpen(false);
+        fetchPlayers(storedHostname);
+        fetchAntennas(storedHostname);
+      }
+    };
+
+    fetchData();
+  
+    return () => abortController.abort();
   }, []);
 
   useEffect(() => {

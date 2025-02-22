@@ -48,12 +48,12 @@ func Run(ctx context.Context) error {
 			AllowMethods: []string{
 				http.MethodGet,
 				http.MethodHead,
-				http.MethodPut,
-				http.MethodPatch,
 				http.MethodPost,
 				http.MethodDelete,
 				http.MethodOptions,
 			},
+			AllowHeaders:     []string{"Content-Type", "Authorization"},
+			AllowCredentials: true,
 		}))
 
 	// For client

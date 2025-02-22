@@ -122,7 +122,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{
 	}
 
 	if err := cleansingObjectWithChangeAntennaType(
-		c.Request().Context(), conn, antenna.ID,
+		c.Request().Context(), q, antenna.ID,
 		store.GetAntennaType(antenna.AntennaTypeName),
 		store.GetAntennaType(req.AntennaTypeName),
 	); err != nil {
@@ -153,7 +153,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{
 	return c.JSON(http.StatusOK, resp)
 }
 
-func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, antennaID int32, oldType, newType store.AntennaType) error {
+func cleansingObjectWithChangeAntennaType(ctx context.Context, q *query.Queries, antennaID int32, oldType, newType store.AntennaType) error {
 	if oldType == newType {
 		return nil
 	}
@@ -162,8 +162,6 @@ func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, ant
 		// if oldType is unknown, we don't need anything
 		return nil
 	}
-
-	q := query.New(conn)
 
 	switch {
 	case oldType == store.AntennaTypePlayer:
@@ -195,15 +193,25 @@ func cleansingObjectWithChangeAntennaType(ctx context.Context, conn *sql.DB, ant
 }
 
 func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
-	q := query.New(conn)
-
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Printf("strconv.Atoi(%s): %v", c.Param("id"), err)
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	antenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
+	tx, err := conn.BeginTx(c.Request().Context(), nil)
+	if err != nil {
+		log.Printf("conn.BeginTx(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	defer func() {
+		if r := recover(); r != nil || err != nil {
+			tx.Rollback()
+		}
+	}()
+	qWithTx := query.New(tx)
+
+	antenna, err := qWithTx.GetAntennaById(c.Request().Context(), int32(id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
@@ -212,17 +220,22 @@ func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB, updatedCh chan struc
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	if err := q.DeleteAntennaByID(c.Request().Context(), int32(id)); err != nil {
+	if err := qWithTx.DeleteAntennaByID(c.Request().Context(), int32(id)); err != nil {
 		log.Printf("q.DeleteAntennaById(): %v", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if err := cleansingObjectWithChangeAntennaType(
-		c.Request().Context(), conn, antenna.ID,
+		c.Request().Context(), qWithTx, antenna.ID,
 		store.GetAntennaType(antenna.AntennaTypeName),
 		store.AntennaTypeUnknown,
 	); err != nil {
 		log.Printf("cleansingObjectWithChangeAntennaType(): %v", err)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("tx.Commit(): %v", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
