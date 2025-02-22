@@ -27,7 +27,7 @@ type WebSocketManager struct {
 
 var wsManager = &WebSocketManager{
 	clients:  make(map[*websocket.Conn]struct{}),
-	notifyCh: make(chan struct{}, 1000), // バッファ付きにして非同期に通知を処理
+	notifyCh: make(chan struct{}, 1000), // with buffer
 }
 
 func (m *WebSocketManager) addClient(ws *websocket.Conn) {
