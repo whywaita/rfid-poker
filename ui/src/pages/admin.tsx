@@ -54,12 +54,18 @@ export default function Admin() {
     const abortController = new AbortController();
 
     const fetchData = async () => {
-      const storedHostname = localStorage.getItem("hostname");
-      if (storedHostname) {
-        setHostname(storedHostname);
-        setModalOpen(false);
-        fetchPlayers(storedHostname);
-        fetchAntennas(storedHostname);
+      try {
+        const storedHostname = localStorage.getItem("hostname");
+        if (storedHostname) {
+          setHostname(storedHostname);
+          setModalOpen(false);
+          fetchPlayers(storedHostname);
+          fetchAntennas(storedHostname);
+          setError(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch data');
       }
     };
 
