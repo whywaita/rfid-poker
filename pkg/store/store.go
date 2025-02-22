@@ -74,6 +74,10 @@ func calcEquity(ctx context.Context, q *query.Queries, updatedCh chan struct{}) 
 
 	if len(players) <= 1 {
 		// if players is less than 2, no need to calculate equity
+		if err := q.ResetEquity(ctx); err != nil {
+			return fmt.Errorf("db.ResetEquity(): %w", err)
+		}
+		updatedCh <- struct{}{}
 		return nil
 	}
 
