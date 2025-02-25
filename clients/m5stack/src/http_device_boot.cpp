@@ -1,8 +1,6 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-#include <M5Unified.h>
-
 std::vector<int> listPairID();
 
 struct PostDeviceParams {
@@ -50,8 +48,7 @@ void postDeviceBoot(String macAddr, String i_host) {
         Serial.println(httpCode);
         Serial.println(payload);
     } else {
-        M5.Lcd.println("Error on sending POST: " + http.errorToString(httpCode));
-        Serial.println("Error on sending POST: " + http.errorToString(httpCode));
+        Serial.println("Error on sending POST: " + http.errorToString(httpCode) + " " + http.getString());
     }
     http.end();
 

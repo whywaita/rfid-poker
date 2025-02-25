@@ -1,6 +1,9 @@
 #include <vector>
 
+#ifdef M5STACK_CORE2
 #include <M5Unified.h>
+#endif
+
 #include <Wire.h>
 #include <MFRC522_I2C.h>
 #include "ClosedCube_TCA9548A.h"
@@ -19,19 +22,40 @@ MFRC522_I2C mfrc522(RFID_ADDRESS, PIN_RESET, &Wire);
 ClosedCube::Wired::TCA9548A tca;
 
 void tcaselect(uint8_t i);
-void readAllRfid(String macAddr, String i_host);
+void readAllRfid(char macAddr[], String i_host);
 void setupRfId();
 String readUID();
 bool hasCard();
 int getPairID(int channel_id);
+std::vector<int> listPairID();
+// Track cards detected on each channel
+bool cardsDetected[RFID_READER_COUNT] = {false};
+
+// Check if both antennas in a pair have cards
+bool isPairComplete(int pair_id) {
+    switch (pair_id) {
+        case 1:
+            return cardsDetected[0] && cardsDetected[1];
+        case 2:
+            return cardsDetected[2] && cardsDetected[3];
+        case 3:
+            return cardsDetected[4] && cardsDetected[5];
+        default:
+            return false;
+    }
+}
 
 void postCard(String macAddr, String uid, int pair_id, String i_host);
 
-void triggerReadUID(int channel, String uid, String macAddr, String i_host) {
+void triggerReadUID(int channel, String uid, char macAddr[], String i_host) {
+    // Only output to LCD when using M5Stack Core2
+#ifdef M5STACK_CORE2
     M5.Lcd.printf("[c%d] ", channel);
     M5.Lcd.print(uid);
     M5.Lcd.println("");
+#endif
 
+    // Always output to Serial for debugging
     Serial.print("[Channel] ");
     Serial.print(channel);
     Serial.printf(" [UID: %s]", uid.c_str());
@@ -63,13 +87,25 @@ void tcaselect(uint8_t i) {
 }
  
 void readAllRfid(char macAddr[], String i_host) {
+    // Reset card detection status
+    for (int i = 0; i < RFID_READER_COUNT; i++) {
+        cardsDetected[i] = false;
+    }
+    
     for (int channel = 0; channel < RFID_READER_COUNT; channel++) {
         tcaselect(channel);
         String uid = readUID();
-        if (uid == "") {
-          continue;
-        };
-        triggerReadUID(channel, uid, macAddr, i_host);
+        if (uid != "") {
+            cardsDetected[channel] = true;
+            triggerReadUID(channel, uid, macAddr, i_host);
+        }
+    }
+    
+    // Check if any pair is complete (for debugging)
+    for (int pair_id : listPairID()) {
+        if (isPairComplete(pair_id)) {
+            Serial.printf("Pair %d is complete!\n", pair_id);
+        }
     }
 }
 
