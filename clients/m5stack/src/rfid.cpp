@@ -13,13 +13,23 @@
 
 #define WIRE Wire
 #define PaHub_I2C_ADDRESS 0x70
-#define RFID_READER_COUNT 6  // The number of RFID readers
 
 #define RFID_ADDRESS 0x28    // The I2C address of the RFID reader
 #define PIN_RESET 12
 MFRC522_I2C mfrc522(RFID_ADDRESS, PIN_RESET, &Wire);
 
 ClosedCube::Wired::TCA9548A tca;
+
+// Add function to get RFID reader count based on device type
+int getRfidReaderCount() {
+#ifdef M5STACK_CORE2
+    return 6;  // Core2 has 6 RFID readers
+#elif defined(M5STACK_ATOM)
+    return 2;  // Atom has 2 RFID readers
+#else
+    return 0;  // Unknown device
+#endif
+}
 
 void tcaselect(uint8_t i);
 void readAllRfid(char macAddr[], String i_host);
@@ -28,8 +38,8 @@ String readUID();
 bool hasCard();
 int getPairID(int channel_id);
 std::vector<int> listPairID();
-// Track cards detected on each channel
-bool cardsDetected[RFID_READER_COUNT] = {false};
+// Track cards detected on each channel - use maximum possible size
+bool cardsDetected[6] = {false};  // Use maximum size (6) for array
 
 // Check if both antennas in a pair have cards
 bool isPairComplete(int pair_id) {
@@ -69,7 +79,7 @@ void setupRfId() {
     Wire.begin();
     Wire.setClock(100000);
     tca.address(PaHub_I2C_ADDRESS);
-    for (uint8_t t = 0; t < RFID_READER_COUNT; t++) {
+    for (uint8_t t = 0; t < getRfidReaderCount(); t++) {
         tcaselect(t);
         Wire.beginTransmission(RFID_ADDRESS);
         if (Wire.endTransmission() == 0) {
@@ -80,7 +90,7 @@ void setupRfId() {
 }
 
 void tcaselect(uint8_t i) {
-    if (i >= RFID_READER_COUNT) return;
+    if (i >= getRfidReaderCount()) return;
     Wire.beginTransmission(PaHub_I2C_ADDRESS);
     Wire.write(1 << i); // Switch the RFID reader to be referenced by mfrc522
     Wire.endTransmission();
@@ -88,11 +98,11 @@ void tcaselect(uint8_t i) {
  
 void readAllRfid(char macAddr[], String i_host) {
     // Reset card detection status
-    for (int i = 0; i < RFID_READER_COUNT; i++) {
+    for (int i = 0; i < getRfidReaderCount(); i++) {
         cardsDetected[i] = false;
     }
     
-    for (int channel = 0; channel < RFID_READER_COUNT; channel++) {
+    for (int channel = 0; channel < getRfidReaderCount(); channel++) {
         tcaselect(channel);
         String uid = readUID();
         if (uid != "") {
@@ -157,11 +167,11 @@ int getPairID(int channel_id) {
 }
 
 std::vector<int> listPairID() {
-    if (RFID_READER_COUNT <= 2) {
+    if (getRfidReaderCount() <= 2) {
         return {1};
-    } else if (RFID_READER_COUNT <= 4) {
+    } else if (getRfidReaderCount() <= 4) {
         return {1, 2};
-    } else if (RFID_READER_COUNT <= 6) {
+    } else if (getRfidReaderCount() <= 6) {
         return {1, 2, 3};
     }
     return {};
