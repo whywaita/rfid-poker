@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -27,11 +27,12 @@ type GetAdminAntennaResponse struct {
 }
 
 func HandleGetAdminAntenna(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleGetAdminAntenna")
 	q := query.New(conn)
 
 	antenna, err := q.GetAntenna(c.Request().Context())
 	if err != nil {
-		log.Printf("q.GetAdminAntenna(): %v", err)
+		logger.WarnContext(c.Request().Context(), "q.GetAntenna", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -39,7 +40,7 @@ func HandleGetAdminAntenna(c echo.Context, conn *sql.DB) error {
 	for _, a := range antenna {
 		deviceID, pairID, err := store.FromSerial(a.Serial)
 		if err != nil {
-			log.Printf("store.FromSerial(%s): %v", a.Serial, err)
+			logger.WarnContext(c.Request().Context(), "store.FromSerial", "error", err)
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
 		respAntenna = append(respAntenna, Antenna{
@@ -63,29 +64,30 @@ type PostAdminAntennaRequest struct {
 }
 
 func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandlePostAdminAntenna")
 	q := query.New(conn)
 
 	var req PostAdminAntennaRequest
 	if err := c.Bind(&req); err != nil {
-		log.Printf("c.Bind(): %v", err)
+		logger.WarnContext(c.Request().Context(), "c.Bind", "error", err)
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
 	id, err := strconv.Atoi(req.ID)
 	if err != nil {
-		log.Printf("strconv.Atoi(%s): %v", req.ID, err)
+		logger.WarnContext(c.Request().Context(), "strconv.Atoi", "error", err, slog.String("id", req.ID))
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
 	// check antenna type name in request is valid
 	if store.GetAntennaType(req.AntennaTypeName) == store.AntennaTypeUnknown {
-		log.Printf("antenna type name %s is unknown", req.AntennaTypeName)
+		logger.WarnContext(c.Request().Context(), "antenna type name is unknown", slog.String("antenna_type_name", req.AntennaTypeName))
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("antenna type name (input: %s) is unknown", req.AntennaTypeName)})
 	}
 
 	storedAntennas, err := q.GetAntenna(c.Request().Context())
 	if err != nil {
-		log.Printf("q.GetAntenna(): %v", err)
+		logger.WarnContext(c.Request().Context(), "q.GetAntenna", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -93,7 +95,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 	if req.AntennaTypeName == store.AntennaTypeBoard.String() || req.AntennaTypeName == store.AntennaTypeMuck.String() {
 		for _, a := range storedAntennas {
 			if a.AntennaTypeName == req.AntennaTypeName {
-				log.Printf("antenna type name %s is already exists", req.AntennaTypeName)
+				logger.WarnContext(c.Request().Context(), "antenna type name is already exists", slog.String("antenna_type_name", req.AntennaTypeName))
 				return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("antenna type name %s is already exists", req.AntennaTypeName)})
 			}
 		}
@@ -104,12 +106,12 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 		}
-		log.Printf("store.GetUnknownAntennaTypeID(): %v", err)
+		logger.WarnContext(c.Request().Context(), "q.GetAntennaById", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if _, err := q.GetAntennaTypeIdByAntennaTypeName(c.Request().Context(), req.AntennaTypeName); err != nil {
-		log.Printf("q.GetAntennaTypeIdByAntennaTypeName(): %v", err)
+		logger.WarnContext(c.Request().Context(), "q.GetAntennaTypeIdByAntennaTypeName", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -117,7 +119,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		Name:   req.AntennaTypeName,
 		Serial: antenna.Serial,
 	}); err != nil {
-		log.Printf("q.SetAntennaTypeToAntennaBySerial(): %v", err)
+		logger.WarnContext(c.Request().Context(), "q.SetAntennaTypeToAntennaBySerial", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -126,7 +128,7 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 		store.GetAntennaType(antenna.AntennaTypeName),
 		store.GetAntennaType(req.AntennaTypeName),
 	); err != nil {
-		log.Printf("cleansingObjectWithChangeAntennaType(): %v", err)
+		logger.WarnContext(c.Request().Context(), "cleansingObjectWithChangeAntennaType", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -134,13 +136,13 @@ func HandlePostAdminAntenna(c echo.Context, conn *sql.DB) error {
 
 	respAntenna, err := q.GetAntennaById(c.Request().Context(), int32(id))
 	if err != nil {
-		log.Printf("q.GetAntennaById(): %v", err)
+		logger.WarnContext(c.Request().Context(), "q.GetAntennaById", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	deviceID, pairID, err := store.FromSerial(respAntenna.Serial)
 	if err != nil {
-		log.Printf("store.FromSerial(%s): %v", respAntenna.Serial, err)
+		logger.WarnContext(c.Request().Context(), "store.FromSerial", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	resp := Antenna{
@@ -193,15 +195,16 @@ func cleansingObjectWithChangeAntennaType(ctx context.Context, q *query.Queries,
 }
 
 func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleDeleteAdminAntenna")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		log.Printf("strconv.Atoi(%s): %v", c.Param("id"), err)
+		logger.WarnContext(c.Request().Context(), "strconv.Atoi", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
 	tx, err := conn.BeginTx(c.Request().Context(), nil)
 	if err != nil {
-		log.Printf("conn.BeginTx(): %v", err)
+		logger.WarnContext(c.Request().Context(), "conn.BeginTx", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	defer func() {
@@ -216,12 +219,12 @@ func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 		}
-		log.Printf("q.GetAntennaById(): %v", err)
+		slog.WarnContext(c.Request().Context(), "q.GetAntennaById", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if err := qWithTx.DeleteAntennaByID(c.Request().Context(), int32(id)); err != nil {
-		log.Printf("q.DeleteAntennaById(): %v", err)
+		slog.WarnContext(c.Request().Context(), "q.DeleteAntennaById", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -230,12 +233,12 @@ func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB) error {
 		store.GetAntennaType(antenna.AntennaTypeName),
 		store.AntennaTypeUnknown,
 	); err != nil {
-		log.Printf("cleansingObjectWithChangeAntennaType(): %v", err)
+		slog.WarnContext(c.Request().Context(), "cleansingObjectWithChangeAntennaType", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("tx.Commit(): %v", err)
+		slog.WarnContext(c.Request().Context(), "tx.Commit", "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,6 +30,11 @@ func main() {
 
 func run() error {
 	ctx := context.Background()
+
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	})))
 
 	configFilePath, err := fetchConfigPath()
 	if err != nil {
@@ -70,7 +76,7 @@ func fetchConfigPath() (string, error) {
 }
 
 func fetchHTTPConfigPath(u *url.URL) (string, error) {
-	log.Printf("fetching config from %s", u.String())
+	slog.Info("execute fetchHTTPConfigPath", slog.String("url", u.String()))
 
 	dir := os.TempDir()
 

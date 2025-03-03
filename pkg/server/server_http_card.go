@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -26,31 +26,33 @@ type PostCardRequest struct {
 }
 
 func HandleCards(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleCards")
 	defer c.Request().Body.Close()
 
 	input := PostCardRequest{}
 	if err := json.NewDecoder(c.Request().Body).Decode(&input); err != nil {
-		log.Printf("invalid request body: %v", err)
+		logger.WarnContext(c.Request().Context(), "invalid request body", "error", err)
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
 	}
+
+	uid := strings.ReplaceAll(input.UID, " ", "")
+	logger = logger.With("device_id", input.DeviceID, "pair_id", input.PairID, "uid", input.UID)
 
 	_, err := store.GetAntennaBySerial(c.Request().Context(), conn, input.DeviceID, input.PairID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			if err := store.RegisterNewDevice(c.Request().Context(), conn, input.DeviceID, input.PairID); err != nil {
-				log.Printf("failed to register new device: %v", err)
+				logger.WarnContext(c.Request().Context(), "failed to register new device", "error", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to register new device")
 			}
 		} else {
-			log.Printf("failed to get antenna: %v", err)
+			logger.WarnContext(c.Request().Context(), "failed to get antenna", "error", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get antenna")
 		}
 	}
 
-	uid := strings.ReplaceAll(input.UID, " ", "")
-
 	if err := processCard(c.Request().Context(), conn, config.Conf, uid, input.DeviceID, input.PairID); err != nil {
-		log.Printf("failed to process card: %v", err)
+		logger.WarnContext(c.Request().Context(), "failed to process card", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to process card")
 	}
 
@@ -58,6 +60,7 @@ func HandleCards(c echo.Context, conn *sql.DB) error {
 }
 
 func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string, deviceID string, pairID int) error {
+	logger := slog.With("method", "processCard")
 	pcard, err := playercards.LoadPlayerCard(uid, cc.CardIDs)
 	if err != nil {
 		return fmt.Errorf("playercards.LoadPlayerCard(%s, cardConfigs): %w", uid, err)
@@ -142,7 +145,7 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 
 			go func() {
 				if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
-					log.Printf("calcEquity: %v", err)
+					logger.WarnContext(context.Background(), "calcEquity", "error", err)
 				}
 				notifyClients()
 			}()
@@ -165,7 +168,7 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 
 			go func() {
 				if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
-					log.Printf("calcEquity: %v", err)
+					logger.WarnContext(context.Background(), "calcEquity", "error", err)
 				}
 				notifyClients()
 			}()
@@ -190,13 +193,13 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 		go func(isUpdated bool) {
 			if isUpdated {
 				if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
-					log.Printf("calcEquity: %v", err)
+					logger.WarnContext(context.Background(), "calcEquity", "error", err)
 				}
 				notifyClients()
 			}
 		}(isUpdated)
 	case "unknown":
-		log.Printf("unknown type antenna (serial: %s)", serial)
+		logger.WarnContext(ctx, "unknown type antenna", "serial", serial)
 	}
 
 	return nil

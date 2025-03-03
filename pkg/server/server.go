@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,11 +26,8 @@ import (
 func Run(ctx context.Context) error {
 	go func() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		log.Println(http.ListenAndServe(":6060", nil))
+		slog.WarnContext(ctx, http.ListenAndServe("localhost:6060", nil).Error())
 	}()
-
-	// unlimited channel
-	updatedCh := make(chan struct{}, 1000)
 
 	conn, err := connectMySQL()
 	if err != nil {
@@ -84,18 +81,18 @@ func Run(ctx context.Context) error {
 		return HandleGetAdminPlayerHand(c, conn)
 	})
 	e.DELETE("/admin/player/:id/hand", func(c echo.Context) error {
-		return HandleDeleteAdminPlayerHand(c, conn, updatedCh)
+		return HandleDeleteAdminPlayerHand(c, conn)
 	})
 	e.DELETE("/admin/game", func(c echo.Context) error {
 		return HandleDeleteAdminGame(c, conn)
 	})
 
 	e.GET("/ws", func(c echo.Context) error {
-		return ws(c, conn, updatedCh)
+		return ws(c, conn)
 	})
 	go func() {
 		if err := e.Start(":8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("failed to start server: %v", err)
+			slog.WarnContext(ctx, "failed to start server", "error", err)
 			return
 		}
 	}()

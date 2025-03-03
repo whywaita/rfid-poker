@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -34,10 +34,12 @@ type GetAdminPlayerHandResponse struct {
 }
 
 func HandleGetAdminPlayerHand(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleGetAdminPlayerHand")
 	q := query.New(conn)
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		logger.WarnContext(c.Request().Context(), "strconv.Atoi", "error", err, slog.String("id", c.Param("id")))
 		return echo.NewHTTPError(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
@@ -47,6 +49,7 @@ func HandleGetAdminPlayerHand(c echo.Context, conn *sql.DB) error {
 			return echo.NewHTTPError(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("not found: (player_id: %d)", id)})
 		}
 
+		logger.WarnContext(c.Request().Context(), "q.GetHandWithCardByPlayerID", "error", err, slog.Int("player_id", id))
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -57,7 +60,7 @@ func HandleGetAdminPlayerHand(c echo.Context, conn *sql.DB) error {
 
 	// check unknown card
 	if cardASuit == -1 || cardARank == poker.RankUnknown || cardBSuit == -1 || cardBRank == poker.RankUnknown {
-		log.Printf("found invalid card: %v", storedHand)
+		logger.WarnContext(c.Request().Context(), "found invalid card", "hand", storedHand)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -82,11 +85,13 @@ func HandleGetAdminPlayerHand(c echo.Context, conn *sql.DB) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-func HandleDeleteAdminPlayerHand(c echo.Context, conn *sql.DB, updatedCh chan struct{}) error {
+func HandleDeleteAdminPlayerHand(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleDeleteAdminPlayerHand")
 	q := query.New(conn)
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		logger.WarnContext(c.Request().Context(), "strconv.Atoi", "error", err, slog.String("id", c.Param("id")))
 		return echo.NewHTTPError(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
@@ -95,7 +100,7 @@ func HandleDeleteAdminPlayerHand(c echo.Context, conn *sql.DB, updatedCh chan st
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("not found: (player_id: %d)", id)})
 		}
-
+		logger.WarnContext(c.Request().Context(), "q.GetHandWithCardByPlayerID", "error", err, slog.Int("player_id", id))
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -109,6 +114,7 @@ func HandleDeleteAdminPlayerHand(c echo.Context, conn *sql.DB, updatedCh chan st
 			Rank: poker.UnmarshalRankString(hand.CardBRank),
 		},
 	}); err != nil {
+		logger.WarnContext(c.Request().Context(), "store.MuckPlayer", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -116,7 +122,7 @@ func HandleDeleteAdminPlayerHand(c echo.Context, conn *sql.DB, updatedCh chan st
 
 	go func() {
 		if err := store.CalcEquity(context.Background(), query.New(conn)); err != nil {
-			log.Printf("calcEquity: %v", err)
+			logger.WarnContext(c.Request().Context(), "store.CalcEquity", "error", err)
 		}
 		notifyClients()
 	}()
