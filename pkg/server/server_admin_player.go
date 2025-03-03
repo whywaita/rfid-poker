@@ -3,7 +3,7 @@ package server
 import (
 	"database/sql"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -26,17 +26,21 @@ type GetAdminPlayersResponse struct {
 }
 
 func HandleGetAdminPlayers(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleGetAdminPlayers")
 	q := query.New(conn)
 
 	players, err := q.GetPlayersWithDevice(c.Request().Context())
 	if err != nil {
+		logger.WarnContext(c.Request().Context(), "q.GetPlayersWithDevice", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get players")
 	}
 
 	var resp GetAdminPlayersResponse
 	for _, p := range players {
+		logger = logger.With("player_id", p.ID)
 		deviceID, pairID, err := store.FromSerial(p.Serial)
 		if err != nil {
+			logger.WarnContext(c.Request().Context(), "store.FromSerial", "error", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to convert serial")
 		}
 		resp.Players = append(resp.Players, Player{
@@ -60,6 +64,7 @@ type PostAdminPlayerResponse struct {
 }
 
 func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandlePostAdminPlayer")
 	q := query.New(conn)
 
 	var req PostAdminPlayerRequest
@@ -72,13 +77,13 @@ func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
 
 	id, err := strconv.Atoi(req.ID)
 	if err != nil {
-		log.Printf("strconv.Atoi(%s): %v", req.ID, err)
+		logger.WarnContext(c.Request().Context(), "strconv.Atoi", "error", err, slog.String("id", req.ID))
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
 	tx, err := conn.BeginTx(c.Request().Context(), nil)
 	if err != nil {
-		log.Printf("conn.BeginTx(): %v", err)
+		logger.WarnContext(c.Request().Context(), "conn.BeginTx", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	defer tx.Rollback()
@@ -90,7 +95,7 @@ func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, ErrorResponse{Error: "player not found"})
 		}
-		log.Printf("qWithTx.GetPlayer(): %v", err)
+		logger.WarnContext(c.Request().Context(), "qWithTx.GetPlayer", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -103,18 +108,18 @@ func HandlePostAdminPlayer(c echo.Context, conn *sql.DB) error {
 
 	respPlayer, err := qWithTx.GetPlayerWithDevice(c.Request().Context(), player.ID)
 	if err != nil {
-		log.Printf("q.GetPlayer(%d): %v", id, err)
+		logger.WarnContext(c.Request().Context(), "qWithTx.GetPlayerWithDevice", "error", err, slog.Int64("player_id", int64(player.ID)))
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	deviceID, pairID, err := store.FromSerial(respPlayer.Serial)
 	if err != nil {
-		log.Printf("store.FromSerial(%s): %v", respPlayer.Serial, err)
+		logger.WarnContext(c.Request().Context(), "store.FromSerial", "error", err, slog.String("serial", respPlayer.Serial))
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("tx.Commit(): %v", err)
+		logger.WarnContext(c.Request().Context(), "tx.Commit", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 

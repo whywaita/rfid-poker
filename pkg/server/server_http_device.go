@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -20,26 +20,30 @@ type Device struct {
 
 // HandleDeviceBoot handle booting device
 func HandleDeviceBoot(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleDeviceBoot")
 	ctx := c.Request().Context()
 	defer c.Request().Body.Close()
 
 	input := Device{}
 	if err := json.NewDecoder(c.Request().Body).Decode(&input); err != nil {
-		log.Printf("invalid request body: %v", err)
+		logger.WarnContext(ctx, "invalid request body", "error", err)
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
 	}
 
+	logger = logger.With("device_id", input.DeviceID)
+
 	var registeredAntenna []string
 	for _, pairID := range input.PairIDs {
+		logger = logger.With("pair_id", pairID)
 		_, err := store.GetAntennaBySerial(ctx, conn, input.DeviceID, pairID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			log.Printf("failed to get antenna: %v", err)
+			logger.WarnContext(ctx, "failed to get antenna", "error", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get antenna")
 		}
 		if errors.Is(err, sql.ErrNoRows) {
 			err := store.RegisterNewDevice(ctx, conn, input.DeviceID, pairID)
 			if err != nil {
-				log.Printf("failed to register new antenna: %v", err)
+				logger.WarnContext(ctx, "failed to register new antenna", "error", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to register new antenna")
 			}
 			registeredAntenna = append(registeredAntenna, store.ToSerial(input.DeviceID, pairID))
