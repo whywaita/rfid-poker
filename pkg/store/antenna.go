@@ -67,6 +67,22 @@ func FromSerial(serial string) (string, int, error) {
 	return s[0], pairID, nil
 }
 
+func DeleteAntennaWithRelatedObjByID(ctx context.Context, q *query.Queries, antennaID int32) error {
+	if err := q.DeleteCardByAntennaID(ctx, antennaID); err != nil {
+		return fmt.Errorf("DeleteCardByAntennaID(): %w", err)
+	}
+
+	if err := q.DeleteHandByAntennaID(ctx, antennaID); err != nil {
+		return fmt.Errorf("DeleteHandByAntennaID(): %w", err)
+	}
+
+	if err := q.DeleteAntennaByID(ctx, antennaID); err != nil {
+		return fmt.Errorf("DeleteAntennaWithRelatedHandAndCardByID(): %w", err)
+	}
+
+	return nil
+}
+
 type AntennaType int
 
 const (

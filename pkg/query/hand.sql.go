@@ -28,6 +28,15 @@ func (q *Queries) DeleteHandAll(ctx context.Context) error {
 	return err
 }
 
+const deleteHandByAntennaID = `-- name: DeleteHandByAntennaID :exec
+DELETE FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.id = ?)
+`
+
+func (q *Queries) DeleteHandByAntennaID(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteHandByAntennaID, id)
+	return err
+}
+
 const getHand = `-- name: GetHand :one
 SELECT id, player_id, equity FROM hand WHERE id = ? LIMIT 1
 `
