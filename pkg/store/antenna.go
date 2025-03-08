@@ -69,15 +69,15 @@ func FromSerial(serial string) (string, int, error) {
 
 func DeleteAntennaWithRelatedObjByID(ctx context.Context, q *query.Queries, antennaID int32) error {
 	if err := q.DeleteCardByAntennaID(ctx, antennaID); err != nil {
-		return fmt.Errorf("DeleteCardByAntennaID(): %w", err)
+		return fmt.Errorf("q.DeleteCardByAntennaID(): %w", err)
 	}
 
 	if err := q.DeleteHandByAntennaID(ctx, antennaID); err != nil {
-		return fmt.Errorf("DeleteHandByAntennaID(): %w", err)
+		return fmt.Errorf("q.DeleteHandByAntennaID(): %w", err)
 	}
 
 	if err := q.DeleteAntennaByID(ctx, antennaID); err != nil {
-		return fmt.Errorf("DeleteAntennaWithRelatedHandAndCardByID(): %w", err)
+		return fmt.Errorf("q.DeleteAntennaByID(): %w", err)
 	}
 
 	return nil
