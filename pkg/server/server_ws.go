@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"sort"
 	"sync"
 
@@ -50,7 +50,7 @@ func (m *WebSocketManager) broadcast(q *query.Queries) {
 	for client := range m.clients {
 		go func(ws *websocket.Conn) {
 			if err := sendPlayer(context.Background(), q, ws); err != nil {
-				log.Printf("Failed to send update to WebSocket: %v", err)
+				slog.WarnContext(context.Background(), "failed to send update to WebSocket", "error", err)
 			}
 		}(client)
 	}
@@ -73,7 +73,7 @@ type SendCard struct {
 	Rank string `json:"rank"`
 }
 
-func ws(c echo.Context, conn *sql.DB, notifyCh chan struct{}) error {
+func ws(c echo.Context, conn *sql.DB) error {
 	q := query.New(conn)
 
 	wsConn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{
@@ -122,7 +122,7 @@ func sendPlayer(ctx context.Context, q *query.Queries, ws *websocket.Conn) error
 		return fmt.Errorf("json.Marshal(%v): %w", send, err)
 	}
 
-	log.Println("Send: ", string(b))
+	slog.With("method", "sendPlayer").Info("Send to message", slog.String("body", string(b)))
 	w, err := ws.Writer(ctx, websocket.MessageText)
 	if err != nil {
 		return fmt.Errorf("ws.Writer(): %w", err)

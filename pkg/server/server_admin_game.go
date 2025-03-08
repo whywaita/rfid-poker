@@ -2,7 +2,7 @@ package server
 
 import (
 	"database/sql"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/whywaita/rfid-poker/pkg/store"
@@ -11,8 +11,9 @@ import (
 )
 
 func HandleDeleteAdminGame(c echo.Context, conn *sql.DB) error {
+	logger := slog.With("method", "HandleDeleteAdminGame")
 	if err := store.ClearGame(c.Request().Context(), conn); err != nil {
-		log.Printf("failed to delete game: %v", err)
+		logger.WarnContext(c.Request().Context(), "failed to delete game", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete game")
 	}
 
