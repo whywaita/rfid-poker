@@ -223,8 +223,8 @@ func HandleDeleteAdminAntenna(c echo.Context, conn *sql.DB) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	if err := qWithTx.DeleteAntennaByID(c.Request().Context(), int32(id)); err != nil {
-		slog.WarnContext(c.Request().Context(), "q.DeleteAntennaById", "error", err, slog.Int("id", id))
+	if err := qWithTx.DeleteAntennaWithRelatedHandAndCardByID(c.Request().Context(), int32(id)); err != nil {
+		slog.WarnContext(c.Request().Context(), "q.DeleteAntennaWithRelatedHandAndCardByID", "error", err, slog.Int("id", id))
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 

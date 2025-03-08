@@ -37,5 +37,10 @@ SELECT id FROM antenna_type WHERE name = ?;
 -- name: DeleteAntennaByID :exec
 DELETE FROM antenna WHERE id = ?;
 
+-- name: DeleteAntennaWithRelatedHandAndCardByID :exec
+DELETE FROM card WHERE serial = (SELECT serial FROM antenna WHERE antenna.id = ?);
+DELETE FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE id = ?);
+DELETE FROM antenna WHERE id = ?;
+
 -- name: ResetAntenna :exec
 DELETE FROM antenna;
