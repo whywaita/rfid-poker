@@ -43,5 +43,8 @@ UPDATE hand SET equity = 0;
 -- name: MuckHand :exec
 UPDATE hand SET is_muck = true WHERE id = ?;
 
+-- name: DeleteHandByAntennaID :exec
+DELETE FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.id = ?);
+
 -- name: DeleteHandAll :exec
 DELETE FROM hand;

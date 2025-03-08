@@ -48,6 +48,15 @@ func (q *Queries) DeleteCardAll(ctx context.Context) error {
 	return err
 }
 
+const deleteCardByAntennaID = `-- name: DeleteCardByAntennaID :exec
+DELETE FROM card WHERE hand_id IN (SELECT id FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.id = ?))
+`
+
+func (q *Queries) DeleteCardByAntennaID(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteCardByAntennaID, id)
+	return err
+}
+
 const getCard = `-- name: GetCard :one
 SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE id = ?
 `
