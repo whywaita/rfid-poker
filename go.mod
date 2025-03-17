@@ -1,10 +1,9 @@
 module github.com/whywaita/rfid-poker
 
 go 1.24.0
-
 require (
 	entgo.io/ent v0.14.2
-	github.com/coder/websocket v1.8.12
+	github.com/coder/websocket v1.8.13
 	github.com/go-sql-driver/mysql v1.9.0
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/jinzhu/configor v1.2.2
