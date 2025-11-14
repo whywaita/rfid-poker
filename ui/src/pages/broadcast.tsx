@@ -51,7 +51,7 @@ function BroadcastView({ hostname }: { hostname: string }) {
                         const newStates = new Map(prevStates);
                         
                         // Mark new players as entering
-                        broadcastPlayers.forEach(player => {
+                        broadcastPlayers.forEach((player: BroadcastPlayerType) => {
                             if (!prevStates.has(player.name)) {
                                 newStates.set(player.name, 'entering');
                             }
@@ -59,7 +59,7 @@ function BroadcastView({ hostname }: { hostname: string }) {
                         
                         // Remove players that are no longer present
                         prevStates.forEach((state, playerName) => {
-                            if (!broadcastPlayers.find(p => p.name === playerName)) {
+                            if (!broadcastPlayers.find((p: BroadcastPlayerType) => p.name === playerName)) {
                                 newStates.delete(playerName);
                             }
                         });
