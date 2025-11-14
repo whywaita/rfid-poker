@@ -1,6 +1,6 @@
 # Equity viewer for poker (No-limit Texas Hold'em)
 
-![demo](./doc/media/demo.gif)
+![demo](./docs/media/demo.gif)
 
 ## Requirements
 
