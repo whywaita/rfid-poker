@@ -38,17 +38,31 @@ func HandleCards(c echo.Context, conn *sql.DB) error {
 	uid := strings.ReplaceAll(input.UID, " ", "")
 	logger = logger.With("device_id", input.DeviceID, "pair_id", input.PairID, "uid", input.UID)
 
-	_, err := store.GetAntennaBySerial(c.Request().Context(), conn, input.DeviceID, input.PairID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			if err := store.RegisterNewDevice(c.Request().Context(), conn, input.DeviceID, input.PairID); err != nil {
-				logger.WarnContext(c.Request().Context(), "failed to register new device", "error", err)
-				return echo.NewHTTPError(http.StatusInternalServerError, "failed to register new device")
+	// First, check if this device_id corresponds to a board antenna
+	// Board antennas should be treated as one board regardless of pair_id
+	boardAntenna, boardErr := store.GetBoardAntennaByDeviceID(c.Request().Context(), conn, input.DeviceID)
+	if boardErr == nil {
+		// This is a board device, use the existing board antenna
+		// Don't register as a new device, just proceed with processing
+		logger.InfoContext(c.Request().Context(), "using existing board antenna", "serial", boardAntenna.Serial)
+	} else if errors.Is(boardErr, sql.ErrNoRows) {
+		// Not a board device, check if antenna exists with device_id-pair_id
+		_, err := store.GetAntennaBySerial(c.Request().Context(), conn, input.DeviceID, input.PairID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// Register as new device
+				if err := store.RegisterNewDevice(c.Request().Context(), conn, input.DeviceID, input.PairID); err != nil {
+					logger.WarnContext(c.Request().Context(), "failed to register new device", "error", err)
+					return echo.NewHTTPError(http.StatusInternalServerError, "failed to register new device")
+				}
+			} else {
+				logger.WarnContext(c.Request().Context(), "failed to get antenna", "error", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get antenna")
 			}
-		} else {
-			logger.WarnContext(c.Request().Context(), "failed to get antenna", "error", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get antenna")
 		}
+	} else {
+		logger.WarnContext(c.Request().Context(), "failed to check board antenna", "error", boardErr)
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to check board antenna")
 	}
 
 	if err := processCard(c.Request().Context(), conn, config.Conf, uid, input.DeviceID, input.PairID); err != nil {
@@ -70,7 +84,18 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 		return fmt.Errorf("playercards.UnmarshalPlayerCard(%s): %w", pcard, err)
 	}
 
-	serial := store.ToSerial(deviceID, pairID)
+	// Check if this device_id corresponds to a board antenna
+	// If so, use the board antenna's serial instead of device_id-pair_id
+	var serial string
+	boardAntenna, boardErr := store.GetBoardAntennaByDeviceID(ctx, conn, deviceID)
+	if boardErr == nil {
+		// This is a board device, use the board antenna's serial
+		serial = boardAntenna.Serial
+		logger.InfoContext(ctx, "using board antenna serial", "serial", serial)
+	} else {
+		// Not a board device, use device_id-pair_id as serial
+		serial = store.ToSerial(deviceID, pairID)
+	}
 
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -115,9 +140,22 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 		return fmt.Errorf("tx.Commit(): %w", err)
 	}
 
-	newAntenna, err := store.GetAntennaBySerial(ctx, conn, deviceID, pairID)
-	if err != nil {
-		return fmt.Errorf("query.GetAntennaBySerial(): %w", err)
+	// Get the antenna again using the same logic as above
+	var newAntenna *query.GetAntennaBySerialRow
+	if boardErr == nil {
+		// Board antenna - get directly by serial
+		q := query.New(conn)
+		antenna, err := q.GetAntennaBySerial(ctx, serial)
+		if err != nil {
+			return fmt.Errorf("query.GetAntennaBySerial(): %w", err)
+		}
+		newAntenna = &antenna
+	} else {
+		// Regular antenna - use the helper function
+		newAntenna, err = store.GetAntennaBySerial(ctx, conn, deviceID, pairID)
+		if err != nil {
+			return fmt.Errorf("store.GetAntennaBySerial(): %w", err)
+		}
 	}
 
 	switch newAntenna.AntennaTypeName {

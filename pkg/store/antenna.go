@@ -24,6 +24,21 @@ func GetAntennaBySerial(ctx context.Context, conn *sql.DB, deviceID string, ante
 	return &antenna, nil
 }
 
+// GetBoardAntennaByDeviceID gets a board antenna by device ID prefix
+// This is used to treat all pair_ids from the same board device as one board
+func GetBoardAntennaByDeviceID(ctx context.Context, conn *sql.DB, deviceID string) (*query.GetBoardAntennaByDeviceIDPrefixRow, error) {
+	q := query.New(conn)
+	antenna, err := q.GetBoardAntennaByDeviceIDPrefix(ctx, deviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		}
+		return nil, fmt.Errorf("GetBoardAntennaByDeviceIDPrefix(): %w", err)
+	}
+
+	return &antenna, nil
+}
+
 // RegisterNewDevice register new device to database
 // serial is device serial number
 // We become unknown as new antenna, that will be registered as new player, muck, board, etc.
