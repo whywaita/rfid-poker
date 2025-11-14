@@ -182,6 +182,10 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 				if err := store.ClearGame(ctx, conn); err != nil {
 					return fmt.Errorf("store.ClearGame(): %w", err)
 				}
+
+				// Reset all antenna type timestamps for the next game
+				resetAntennaTypeTimestamps()
+
 				notifyClients()
 				return nil
 			}
@@ -201,6 +205,9 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 	case "unknown":
 		logger.WarnContext(ctx, "unknown type antenna", "serial", serial)
 	}
+
+	// Update the last card read time for timeout detection
+	updateLastCardReadTime(newAntenna.AntennaTypeName)
 
 	return nil
 }

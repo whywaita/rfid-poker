@@ -17,6 +17,9 @@ func HandleDeleteAdminGame(c echo.Context, conn *sql.DB) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete game")
 	}
 
+	// Reset all antenna type timestamps
+	resetAntennaTypeTimestamps()
+
 	notifyClients()
 
 	return c.JSON(http.StatusNoContent, nil)
