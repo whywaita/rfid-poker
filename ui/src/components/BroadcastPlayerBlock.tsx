@@ -12,7 +12,9 @@ const BroadcastPlayerBlock = ({ player }: BroadcastPlayerBlockProps) => {
       <div className="flex flex-col items-center space-y-2">
         <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center">
           <span className="text-2xl font-bold text-gray-300">
-            {player.name.charAt(0).toUpperCase()}
+            {player.name && typeof player.name === 'string'
+              ? player.name.charAt(0).toUpperCase()
+              : '?'}
           </span>
         </div>
         

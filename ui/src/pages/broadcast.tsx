@@ -7,10 +7,18 @@ import { useRouter } from 'next/router';
 
 // Convert PlayerType from WebSocket to BroadcastPlayerType
 function convertToBroadcastPlayer(player: any): BroadcastPlayerType {
+    if (!player || typeof player !== 'object') {
+        throw new Error('Invalid player object received');
+    }
+
+    if (!player.name || typeof player.name !== 'string') {
+        throw new Error('Player name is required and must be a string');
+    }
+
     return {
         name: player.name,
         hand: player.hand || [],
-        equity: player.equity || 0,
+        equity: typeof player.equity === 'number' && !isNaN(player.equity) ? player.equity : 0,
         photoUrl: `https://placehold.jp/3d4070/ffffff/500x500.png?text=${encodeURIComponent(player.name)}`
     };
 }

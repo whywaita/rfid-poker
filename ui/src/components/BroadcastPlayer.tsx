@@ -40,7 +40,9 @@ function getCardColor(suit: CardType['suit']) {
 }
 
 const BroadcastPlayer = ({ player }: { player: BroadcastPlayerType }) => {
-    if (!player) { return <div></div> }
+    if (!player || !player.name || !Array.isArray(player.hand)) {
+        return <div></div>;
+    }
 
     const equityPercentage = (player.equity * 100).toFixed(2);
 
@@ -57,7 +59,7 @@ const BroadcastPlayer = ({ player }: { player: BroadcastPlayerType }) => {
             <div className="flex flex-col items-left justify-center flex-1 h-full pt-5 pl-5">
                 {/* Hand Cards - positioned above the box */}
                 <div className="absolute top-[-20px] left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
-                    {player.hand.map((card, index) => (
+                    {player.hand.filter(card => card && card.suit && card.rank).map((card, index) => (
                         <div key={index} className="bg-white rounded-lg p-2 shadow-lg border-2 border-gray-300 flex flex-col items-center justify-center min-w-[50px] h-20">
                             <div className={`text-[40px] leading-none mb-0.5 ${getCardColor(card.suit)}`}>
                                 {ContentSuit(card.suit)}
