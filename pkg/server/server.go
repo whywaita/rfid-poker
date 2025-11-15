@@ -251,6 +251,7 @@ func connectMySQL() (*sql.DB, error) {
 	cfg.DBName = config.Conf.MySQLDatabase
 
 	cfg.MultiStatements = true
+	cfg.ParseTime = true
 
 	conn, err := mysql.NewConnector(cfg)
 	if err != nil {
