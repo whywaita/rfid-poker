@@ -39,3 +39,10 @@ DELETE FROM antenna WHERE id = ?;
 
 -- name: ResetAntenna :exec
 DELETE FROM antenna;
+
+-- name: GetBoardAntennaByDeviceIDPrefix :one
+SELECT antenna.id, serial, antenna_type_id, player_id, antenna_type.name AS antenna_type_name
+FROM antenna
+JOIN antenna_type ON antenna_type.id = antenna.antenna_type_id
+WHERE antenna_type.name = 'board' AND serial LIKE CONCAT(?, '%')
+LIMIT 1;
