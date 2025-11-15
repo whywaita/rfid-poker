@@ -22,6 +22,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/whywaita/rfid-poker/pkg/config"
+	"github.com/whywaita/rfid-poker/pkg/query"
 	"github.com/whywaita/rfid-poker/pkg/store"
 )
 
@@ -71,6 +72,47 @@ func resetAntennaTypeTimestamps() {
 		ts.lastReadTime = time.Time{}
 		ts.hasReadCard = false
 	}
+}
+
+// restoreAntennaTypeTimestamps restores antenna type timestamps from the database on server startup
+func restoreAntennaTypeTimestamps(ctx context.Context, conn *sql.DB) error {
+	logger := slog.With("method", "restoreAntennaTypeTimestamps")
+
+	q := query.New(conn)
+
+	// Check if there's an active game
+	_, err := q.GetCurrentGame(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// No active game, nothing to restore
+			logger.InfoContext(ctx, "no active game found, skipping timestamp restoration")
+			return nil
+		}
+		return fmt.Errorf("q.GetCurrentGame(): %w", err)
+	}
+
+	// Get all antenna types that have cards in the current game
+	antennaTypes, err := q.GetAntennaTypesWithCardsInCurrentGame(ctx)
+	if err != nil {
+		return fmt.Errorf("q.GetAntennaTypesWithCardsInCurrentGame(): %w", err)
+	}
+
+	// Restore timestamps for antenna types that have cards
+	antennaTypeTimestampsMu.Lock()
+	defer antennaTypeTimestampsMu.Unlock()
+
+	now := time.Now()
+	for _, antennaTypeName := range antennaTypes {
+		if ts, ok := antennaTypeTimestamps[antennaTypeName]; ok {
+			ts.hasReadCard = true
+			ts.lastReadTime = now
+			logger.InfoContext(ctx, "restored antenna type timestamp",
+				"antenna_type", antennaTypeName,
+				"last_read_time", now)
+		}
+	}
+
+	return nil
 }
 
 // startGameTimeoutChecker starts a goroutine that checks for game timeout
@@ -165,6 +207,12 @@ func Run(ctx context.Context) error {
 	}
 	if err := initializeDatabase(conn); err != nil {
 		return fmt.Errorf("initializeDatabase(): %w", err)
+	}
+
+	// Restore antenna type timestamps from database
+	if err := restoreAntennaTypeTimestamps(ctx, conn); err != nil {
+		slog.WarnContext(ctx, "failed to restore antenna type timestamps", "error", err)
+		// Continue server startup even if restoration fails
 	}
 
 	// Start game timeout checker

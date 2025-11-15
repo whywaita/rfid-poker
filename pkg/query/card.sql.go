@@ -59,6 +59,37 @@ func (q *Queries) DeleteCardByAntennaID(ctx context.Context, id int32) error {
 	return err
 }
 
+const getAntennaTypesWithCardsInCurrentGame = `-- name: GetAntennaTypesWithCardsInCurrentGame :many
+SELECT DISTINCT antenna_type.name AS antenna_type_name
+FROM card
+JOIN antenna ON card.serial = antenna.serial
+JOIN antenna_type ON antenna.antenna_type_id = antenna_type.id
+WHERE card.game_id = (SELECT id FROM game WHERE status = 'active' ORDER BY started_at DESC LIMIT 1)
+`
+
+func (q *Queries) GetAntennaTypesWithCardsInCurrentGame(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getAntennaTypesWithCardsInCurrentGame)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var antenna_type_name string
+		if err := rows.Scan(&antenna_type_name); err != nil {
+			return nil, err
+		}
+		items = append(items, antenna_type_name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCard = `-- name: GetCard :one
 SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE id = ?
 `
