@@ -215,30 +215,13 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 		// Send anyway if board
 		isUpdated, err := store.AddBoard(ctx, conn, []poker.Card{card}, serial)
 		if err != nil {
-			if errors.Is(err, store.ErrWillGoToNextGame) {
-				// Get current game ID before finishing it
-				gameID, gameErr := store.GetOrCreateCurrentGame(ctx, conn)
-				if gameErr == nil {
-					slog.InfoContext(ctx, "Moving to next game - too many board cards detected",
-						slog.String("game_id", gameID),
-						slog.String("event", "next_game_triggered"),
-						slog.String("reason", "too_many_board_cards"))
-				}
-
-				// go to next game
-				if err := store.ClearGame(ctx, conn); err != nil {
-					return fmt.Errorf("store.ClearGame(): %w", err)
-				}
-
-				// Reset all antenna type timestamps for the next game
-				resetAntennaTypeTimestamps()
-
-				slog.InfoContext(ctx, "Game cleared and ready for next game",
-					slog.String("event", "game_cleared"))
-				notifyClients()
-				return nil
+			if errors.Is(err, store.ErrBoardCardLimitExceeded) {
+				// Board card limit exceeded, reject the request without saving
+				logger.WarnContext(ctx, "board card limit exceeded, rejecting card",
+					"serial", serial,
+					"card", fmt.Sprintf("%s%s", card.Rank.String(), card.Suit.String()))
+				return nil // Don't return error to avoid 500, just ignore the card
 			}
-
 			return fmt.Errorf("store.AddBoard(): %w", err)
 		}
 		notifyClients()
