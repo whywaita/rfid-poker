@@ -3,8 +3,8 @@ SELECT id, card_suit, card_rank, serial, is_board FROM card
 WHERE is_board = true;
 
 -- name: AddCardToBoard :exec
-INSERT INTO card (card_suit, card_rank, serial, is_board, game_id)
-VALUES (?, ?, ?, true, ?);
+INSERT INTO card (card_suit, card_rank, serial, game_id, is_board)
+VALUES (?, ?, ?, ?, true);
 
 -- name: ResetBoard :exec
 DELETE FROM card

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	ErrWillGoToNextGame = errors.New("will go to next game")
+	ErrBoardCardLimitExceeded = errors.New("board card limit exceeded (max 5 cards)")
 )
 
 func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial string) (bool, error) {
@@ -42,10 +42,16 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial stri
 	}
 
 	board, needInsert, isUpdated := concatCards(nowBoard, cards)
-	if len(board) >= 6 {
-		// load 7 cards. will go to next game.
+
+	// Check if adding new cards would exceed the limit (max 5 board cards)
+	if len(board) > 5 {
 		tx.Rollback()
-		return false, ErrWillGoToNextGame
+		slog.WarnContext(ctx, "Board card limit exceeded, rejecting request",
+			slog.String("game_id", gameID),
+			slog.String("event", "board_card_limit_exceeded"),
+			slog.Int("current_board_count", len(nowBoard)),
+			slog.Int("attempted_total", len(board)))
+		return false, ErrBoardCardLimitExceeded
 	}
 
 	if len(needInsert) > 0 {
