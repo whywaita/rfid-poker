@@ -11,7 +11,7 @@ import (
 )
 
 const addCard = `-- name: AddCard :execresult
-INSERT INTO card (card_suit, card_rank, serial, is_board) VALUES (?, ?, ?, ?)
+INSERT INTO card (card_suit, card_rank, serial, is_board, game_id) VALUES (?, ?, ?, ?, ?)
 `
 
 type AddCardParams struct {
@@ -19,6 +19,7 @@ type AddCardParams struct {
 	CardRank string
 	Serial   string
 	IsBoard  bool
+	GameID   sql.NullString
 }
 
 func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (sql.Result, error) {
@@ -27,6 +28,7 @@ func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (sql.Result, e
 		arg.CardRank,
 		arg.Serial,
 		arg.IsBoard,
+		arg.GameID,
 	)
 }
 

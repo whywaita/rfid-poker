@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/whywaita/poker-go"
 	"github.com/whywaita/rfid-poker/pkg/query"
 )
@@ -20,7 +22,67 @@ var (
 	calcEquityMu sync.RWMutex
 )
 
+// CreateNewGame creates a new game with a UUID and returns the game ID
+func CreateNewGame(ctx context.Context, conn *sql.DB) (string, error) {
+	db := query.New(conn)
+	gameID := uuid.New().String()
+
+	if err := db.CreateGame(ctx, gameID); err != nil {
+		return "", fmt.Errorf("db.CreateGame(): %w", err)
+	}
+
+	slog.InfoContext(ctx, "New game started",
+		slog.String("game_id", gameID),
+		slog.String("event", "game_started"))
+	return gameID, nil
+}
+
+// GetOrCreateCurrentGame returns the current active game ID, or creates a new one if none exists
+func GetOrCreateCurrentGame(ctx context.Context, conn *sql.DB) (string, error) {
+	db := query.New(conn)
+
+	game, err := db.GetCurrentGame(ctx)
+	if err == sql.ErrNoRows {
+		// No active game, create a new one
+		return CreateNewGame(ctx, conn)
+	}
+	if err != nil {
+		return "", fmt.Errorf("db.GetCurrentGame(): %w", err)
+	}
+
+	return game.ID, nil
+}
+
+// FinishCurrentGame finishes the current active game
+func FinishCurrentGame(ctx context.Context, conn *sql.DB) error {
+	db := query.New(conn)
+
+	game, err := db.GetCurrentGame(ctx)
+	if err == sql.ErrNoRows {
+		// No active game to finish
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("db.GetCurrentGame(): %w", err)
+	}
+
+	if err := db.FinishGame(ctx, game.ID); err != nil {
+		return fmt.Errorf("db.FinishGame(): %w", err)
+	}
+
+	slog.InfoContext(ctx, "Game finished",
+		slog.String("game_id", game.ID),
+		slog.String("event", "game_finished"),
+		slog.Time("started_at", game.StartedAt))
+	return nil
+}
+
 func ClearGame(ctx context.Context, conn *sql.DB) error {
+	// Finish current game before clearing
+	if err := FinishCurrentGame(ctx, conn); err != nil {
+		return fmt.Errorf("FinishCurrentGame(): %w", err)
+	}
+
 	db := query.New(conn)
 
 	if err := db.DeleteCardAll(ctx); err != nil {

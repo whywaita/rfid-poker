@@ -8,7 +8,7 @@ SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE card_rank = ?
 SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE serial = ?;
 
 -- name: AddCard :execresult
-INSERT INTO card (card_suit, card_rank, serial, is_board) VALUES (?, ?, ?, ?);
+INSERT INTO card (card_suit, card_rank, serial, is_board, game_id) VALUES (?, ?, ?, ?, ?);
 
 -- name: SetCardHandByCardID :execresult
 UPDATE card SET hand_id = ?

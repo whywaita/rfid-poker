@@ -216,6 +216,15 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 		isUpdated, err := store.AddBoard(ctx, conn, []poker.Card{card}, serial)
 		if err != nil {
 			if errors.Is(err, store.ErrWillGoToNextGame) {
+				// Get current game ID before finishing it
+				gameID, gameErr := store.GetOrCreateCurrentGame(ctx, conn)
+				if gameErr == nil {
+					slog.InfoContext(ctx, "Moving to next game - too many board cards detected",
+						slog.String("game_id", gameID),
+						slog.String("event", "next_game_triggered"),
+						slog.String("reason", "too_many_board_cards"))
+				}
+
 				// go to next game
 				if err := store.ClearGame(ctx, conn); err != nil {
 					return fmt.Errorf("store.ClearGame(): %w", err)
@@ -224,6 +233,8 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 				// Reset all antenna type timestamps for the next game
 				resetAntennaTypeTimestamps()
 
+				slog.InfoContext(ctx, "Game cleared and ready for next game",
+					slog.String("event", "game_cleared"))
 				notifyClients()
 				return nil
 			}

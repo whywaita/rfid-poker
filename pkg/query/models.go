@@ -6,6 +6,7 @@ package query
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Antenna struct {
@@ -27,6 +28,14 @@ type Card struct {
 	IsBoard  bool
 	HandID   sql.NullInt32
 	Serial   string
+	GameID   sql.NullString
+}
+
+type Game struct {
+	ID        string
+	StartedAt time.Time
+	EndedAt   sql.NullTime
+	Status    string
 }
 
 type Hand struct {
@@ -34,6 +43,7 @@ type Hand struct {
 	PlayerID int32
 	Equity   sql.NullFloat64
 	IsMuck   bool
+	GameID   sql.NullString
 }
 
 type Player struct {

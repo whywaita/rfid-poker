@@ -7,21 +7,28 @@ package query
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addCardToBoard = `-- name: AddCardToBoard :exec
-INSERT INTO card (card_suit, card_rank, serial, is_board)
-VALUES (?, ?, ?,true)
+INSERT INTO card (card_suit, card_rank, serial, is_board, game_id)
+VALUES (?, ?, ?, true, ?)
 `
 
 type AddCardToBoardParams struct {
 	CardSuit string
 	CardRank string
 	Serial   string
+	GameID   sql.NullString
 }
 
 func (q *Queries) AddCardToBoard(ctx context.Context, arg AddCardToBoardParams) error {
-	_, err := q.db.ExecContext(ctx, addCardToBoard, arg.CardSuit, arg.CardRank, arg.Serial)
+	_, err := q.db.ExecContext(ctx, addCardToBoard,
+		arg.CardSuit,
+		arg.CardRank,
+		arg.Serial,
+		arg.GameID,
+	)
 	return err
 }
 

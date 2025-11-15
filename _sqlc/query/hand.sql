@@ -31,8 +31,8 @@ WHERE hand.player_id = ?
 SELECT id, player_id, equity FROM hand WHERE is_muck = false;
 
 -- name: AddHand :execresult
-INSERT INTO hand (player_id, is_muck)
-VALUES (?, false);
+INSERT INTO hand (player_id, is_muck, game_id)
+VALUES (?, false, ?);
 
 -- name: UpdateEquity :exec
 UPDATE hand SET equity = ? WHERE id = ?;

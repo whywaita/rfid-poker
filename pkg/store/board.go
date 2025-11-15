@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 
@@ -17,6 +18,12 @@ var (
 )
 
 func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial string) (bool, error) {
+	// Get or create current game
+	gameID, err := GetOrCreateCurrentGame(ctx, conn)
+	if err != nil {
+		return false, fmt.Errorf("GetOrCreateCurrentGame(): %w", err)
+	}
+
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("conn.BeginTx(): %w", err)
@@ -47,11 +54,20 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial stri
 				CardSuit: c.Suit.String(),
 				CardRank: c.Rank.String(),
 				Serial:   serial,
+				GameID:   sql.NullString{String: gameID, Valid: true},
 			})
 			if err != nil {
 				tx.Rollback()
 				return false, fmt.Errorf("query.AddCardToBoard(): %w", err)
 			}
+			slog.InfoContext(ctx, "Added board card",
+				slog.String("game_id", gameID),
+				slog.String("event", "board_card_added"),
+				slog.String("card_rank", c.Rank.String()),
+				slog.String("card_suit", c.Suit.String()),
+				slog.Bool("is_board", true),
+				slog.String("serial", serial),
+				slog.Int("board_card_count", len(board)+1))
 		}
 	}
 

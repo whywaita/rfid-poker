@@ -11,12 +11,17 @@ import (
 )
 
 const addHand = `-- name: AddHand :execresult
-INSERT INTO hand (player_id, is_muck)
-VALUES (?, false)
+INSERT INTO hand (player_id, is_muck, game_id)
+VALUES (?, false, ?)
 `
 
-func (q *Queries) AddHand(ctx context.Context, playerID int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, addHand, playerID)
+type AddHandParams struct {
+	PlayerID int32
+	GameID   sql.NullString
+}
+
+func (q *Queries) AddHand(ctx context.Context, arg AddHandParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, addHand, arg.PlayerID, arg.GameID)
 }
 
 const deleteHandAll = `-- name: DeleteHandAll :exec
