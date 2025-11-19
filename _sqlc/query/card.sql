@@ -19,7 +19,6 @@ DELETE FROM card WHERE is_board = true;
 
 -- name: DeleteCardByAntennaID :exec
 DELETE FROM card WHERE hand_id IN (SELECT id FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.id = ?));
-
 -- name: DeleteCardAll :exec
 DELETE FROM card;
 
