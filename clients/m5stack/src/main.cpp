@@ -85,7 +85,7 @@ void loopCore2() {
     M5.Lcd.println("RFID Error:");
     M5.Lcd.println(e.what());
   }
-  delay(1000);
+  delay(200); // Reduced from 1000ms for faster response
 }
 #elif defined(M5STACK_ATOM)
 void setupAtom() {
@@ -148,7 +148,7 @@ void loopAtom() {
   }
 
   M5.update();
-  delay(1000);
+  delay(200); // Reduced from 1000ms for faster response
 }
 #endif
 

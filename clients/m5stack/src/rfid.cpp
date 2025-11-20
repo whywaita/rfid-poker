@@ -63,6 +63,17 @@ std::vector<int> listPairID();
 // Track cards detected on each channel - use maximum possible size
 bool cardsDetected[6] = {false}; // Use maximum size (6) for array
 
+// Card history to prevent duplicate sends within 30 seconds
+#define CARD_SEND_COOLDOWN_MS 30000 // 30 seconds in milliseconds
+
+struct CardHistory {
+  String uid;
+  unsigned long lastSentTime;
+};
+
+// Store card history for each channel (max 6 channels)
+CardHistory cardHistory[6] = {{"", 0}};
+
 // Check if both antennas in a pair have cards
 bool isPairComplete(int pair_id) {
   switch (pair_id) {
@@ -80,6 +91,33 @@ bool isPairComplete(int pair_id) {
 void postCard(String macAddr, String uid, int pair_id, String i_host);
 
 void triggerReadUID(int channel, String uid, char macAddr[], String i_host) {
+  // Check if this card was sent recently (within 30 seconds)
+  unsigned long currentTime = millis();
+
+  // Handle millis() overflow (occurs approximately every 50 days)
+  bool timeValid = true;
+  if (cardHistory[channel].lastSentTime > 0) {
+    unsigned long timeSinceLastSend;
+    if (currentTime >= cardHistory[channel].lastSentTime) {
+      timeSinceLastSend = currentTime - cardHistory[channel].lastSentTime;
+    } else {
+      // millis() has overflowed, calculate the time difference
+      timeSinceLastSend =
+          (0xFFFFFFFF - cardHistory[channel].lastSentTime) + currentTime + 1;
+    }
+
+    // Check if same card was sent within cooldown period
+    if (cardHistory[channel].uid == uid &&
+        timeSinceLastSend < CARD_SEND_COOLDOWN_MS) {
+      Serial.printf("\n[Channel %d] Card %s already sent %lu ms ago, skipping "
+                    "(cooldown: %d ms)\n",
+                    channel, uid.c_str(), timeSinceLastSend,
+                    CARD_SEND_COOLDOWN_MS);
+      Serial.flush();
+      return; // Skip sending this card
+    }
+  }
+
   // Always output to Serial for debugging (use single printf to avoid buffer
   // issues)
   Serial.printf("\n[Channel] %d [UID: %s]\n", channel, uid.c_str());
@@ -95,6 +133,10 @@ void triggerReadUID(int channel, String uid, char macAddr[], String i_host) {
 
   int pair_id = getPairID(channel);
   postCard(macAddr, uid, pair_id, i_host);
+
+  // Update card history after successful send
+  cardHistory[channel].uid = uid;
+  cardHistory[channel].lastSentTime = millis();
 }
 
 void setupRfId() {

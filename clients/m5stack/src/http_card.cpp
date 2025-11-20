@@ -2,6 +2,8 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
+HTTPClient http;
+
 void postCard(String macAddr, String uid, int pair_id, String i_host) {
   unsigned long startTime = millis();
   Serial.printf("\n[POST START] pair_id=%d, uid=%s, time=%lu ms\n", pair_id,
@@ -32,10 +34,8 @@ void postCard(String macAddr, String uid, int pair_id, String i_host) {
                 (i_host + "/card").c_str(), beforeConnect - startTime);
   Serial.flush();
 
-  HTTPClient http;
-  http.setTimeout(
-      300000); // 5 minutes (300 seconds) - for debugging server-side processing
-  http.setReuse(false); // Disable connection reuse to avoid keep-alive issues
+  http.setTimeout(10000); // 10 seconds
+  // http.setReuse(false);  // Disable connection reuse to avoid keep-alive issues
   http.begin(i_host + "/card");
   http.addHeader("Content-Type", "application/json");
 
@@ -44,7 +44,7 @@ void postCard(String macAddr, String uid, int pair_id, String i_host) {
                 beforePost - startTime);
   Serial.flush();
 
-  int maxRetries = 1; // Only 1 attempt with 5-minute timeout (no retry)
+  int maxRetries = 3; // 3 attempts with 5-second timeout each
   int httpCode;
   for (int i = 0; i < maxRetries; i++) {
     unsigned long retryStart = millis();
@@ -64,9 +64,9 @@ void postCard(String macAddr, String uid, int pair_id, String i_host) {
       break;
 
     if (i < maxRetries - 1) {
-      Serial.printf("[HTTP] Retrying after 1 second...\n");
+      Serial.printf("[HTTP] Retrying after 100ms...\n");
       Serial.flush();
-      delay(1000); // Wait 1 second before retry
+      delay(100); // Wait 100ms before retry
     }
   }
 
