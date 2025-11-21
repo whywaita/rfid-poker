@@ -1,40 +1,43 @@
 # m5stack-client
 
-This is a client for the M5Stack device. It is written in C++.
+This is a client for the M5Stack Atom device. It is written in C++.
 
 We developed with PlatformIO.
 
-## Configure (M5Stack Core2)
+## Configure
 
-1. Put `/RFID.txt` file in the root of the SD card (as TF card).
+M5Stack Atom is supported with build-time configuration.
 
-```json
-{
-  "ssids": [
-    {
-      "ssid": "your-ssid-1",
-      "pass": "your-password-2"
-    },
-    {
-      "ssid": "your-ssid-2",
-      "pass": "your-password-2"
-    }
-  ],
-  "host": "https://your-host" // your server address
-}
-```
+### Build-time Configuration
 
-The device will connect to the SSID in the order of the list.
+The following environment variables are required:
 
-## Configure (M5Stack Atom)
+- `WIFI_SSID`: WiFi SSID to connect
+- `WIFI_PASSWORD`: WiFi password
+- `API_HOST`: Server API endpoint (must be escaped, e.g., `'\"https\://your-host.example.com\"'`)
+- `CLIENT_TYPE`: Type of client (optional, but recommended)
+  - `player`: Player mode - 2 RFID readers for hole cards (sends cards only when both are detected)
+  - `board`: Board mode - 5 RFID readers for community cards (sends each card immediately)
+  - `muck`: Muck mode - 2 RFID readers for muck cards (sends cards only when both are detected)
+  - If not specified, defaults to 2 RFID readers
 
-M5stack Atom is supported only one SSID.
+### Build and Upload
 
-1. Build the project with the following command.
-
-Don't forget to escape the double quotes in the API_HOST.
+Build the project with the following command:
 
 ```bash
-WIFI_SSID="your-ssid" WIFI_PASSWORD="your-password" API_HOST='\"https\://your-host.example.com\"' pio run -t upload --environment m5stack-atom
+WIFI_SSID="your-ssid" WIFI_PASSWORD="your-password" API_HOST='\"https\://your-host.example.com\"' CLIENT_TYPE="player" pio run -t upload --environment m5stack-atom
+```
+
+### Examples
+
+For player device:
+```bash
+WIFI_SSID="your-ssid" WIFI_PASSWORD="your-password" API_HOST='\"https\://your-host.example.com\"' CLIENT_TYPE="player" pio run -t upload --environment m5stack-atom
+```
+
+For board device:
+```bash
+WIFI_SSID="your-ssid" WIFI_PASSWORD="your-password" API_HOST='\"https\://your-host.example.com\"' CLIENT_TYPE="board" pio run -t upload --environment m5stack-atom
 ```
 

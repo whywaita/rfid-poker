@@ -35,7 +35,8 @@ void postCard(String macAddr, String uid, int pair_id, String i_host) {
   Serial.flush();
 
   http.setTimeout(10000); // 10 seconds
-  // http.setReuse(false);  // Disable connection reuse to avoid keep-alive issues
+  // http.setReuse(false);  // Disable connection reuse to avoid keep-alive
+  // issues
   http.begin(i_host + "/card");
   http.addHeader("Content-Type", "application/json");
 

@@ -1,9 +1,5 @@
 #include <vector>
 
-#ifdef M5STACK_CORE2
-#include <M5Unified.h>
-#endif
-
 #include "ClosedCube_TCA9548A.h"
 #include <MFRC522_I2C.h>
 #include <Wire.h>
@@ -43,14 +39,8 @@ int getRfidReaderCount() {
     return 5; // Board mode: 5 RFID readers for community cards
   }
 
-  // Fallback to device type if CLIENT_TYPE not specified
-#ifdef M5STACK_CORE2
-  return 6; // Core2 has 6 RFID readers
-#elif defined(M5STACK_ATOM)
+  // Fallback to Atom if CLIENT_TYPE not specified
   return 2; // Atom has 2 RFID readers
-#else
-  return 0; // Unknown device
-#endif
 }
 
 void tcaselect(uint8_t i);
@@ -122,14 +112,6 @@ void triggerReadUID(int channel, String uid, char macAddr[], String i_host) {
   // issues)
   Serial.printf("\n[Channel] %d [UID: %s]\n", channel, uid.c_str());
   Serial.flush();
-
-  // Only output to LCD when using M5Stack Core2 (after Serial to avoid
-  // interference)
-#ifdef M5STACK_CORE2
-  M5.Lcd.printf("[c%d] ", channel);
-  M5.Lcd.print(uid);
-  M5.Lcd.println("");
-#endif
 
   int pair_id = getPairID(channel);
   postCard(macAddr, uid, pair_id, i_host);
