@@ -28,7 +28,7 @@ type Card struct {
 	IsBoard  bool
 	HandID   sql.NullInt32
 	Serial   string
-	GameID   sql.NullString
+	GameID   string
 }
 
 type Game struct {
@@ -43,7 +43,16 @@ type Hand struct {
 	PlayerID int32
 	Equity   sql.NullFloat64
 	IsMuck   bool
-	GameID   sql.NullString
+	GameID   string
+}
+
+type HandHistory struct {
+	ID        int32
+	GameID    string
+	PlayerID  int32
+	Equity    sql.NullFloat64
+	IsMuck    bool
+	CreatedAt time.Time
 }
 
 type Player struct {

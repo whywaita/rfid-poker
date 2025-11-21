@@ -22,6 +22,9 @@ DELETE FROM card WHERE hand_id IN (SELECT id FROM hand WHERE player_id = (SELECT
 -- name: DeleteCardAll :exec
 DELETE FROM card;
 
+-- name: DeleteCardByGameID :exec
+DELETE FROM card WHERE game_id = ?;
+
 -- name: GetAntennaTypesWithCardsInCurrentGame :many
 SELECT DISTINCT antenna_type.name AS antenna_type_name
 FROM card

@@ -28,6 +28,15 @@ func (q *Queries) DeleteAllGames(ctx context.Context) error {
 	return err
 }
 
+const deleteGameByID = `-- name: DeleteGameByID :exec
+DELETE FROM game WHERE id = ?
+`
+
+func (q *Queries) DeleteGameByID(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteGameByID, id)
+	return err
+}
+
 const finishGame = `-- name: FinishGame :exec
 UPDATE game SET ended_at = NOW(), status = 'finished' WHERE id = ?
 `

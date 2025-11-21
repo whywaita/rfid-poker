@@ -47,7 +47,7 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 
 	hand, err := qWithTx.AddHand(ctx, query.AddHandParams{
 		PlayerID: player.ID,
-		GameID:   sql.NullString{String: gameID, Valid: true},
+		GameID:   gameID,
 	})
 	if err != nil {
 		tx.Rollback()
@@ -76,7 +76,7 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 			CardRank: c.Rank.String(),
 			Serial:   serial,
 			IsBoard:  false,
-			GameID:   sql.NullString{String: gameID, Valid: true},
+			GameID:   gameID,
 		})
 		if err != nil && !sqlgraph.IsUniqueConstraintError(err) {
 			tx.Rollback()

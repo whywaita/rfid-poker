@@ -13,3 +13,6 @@ UPDATE game SET ended_at = NOW(), status = 'finished' WHERE id = ?;
 
 -- name: DeleteAllGames :exec
 DELETE FROM game;
+
+-- name: DeleteGameByID :exec
+DELETE FROM game WHERE id = ?;

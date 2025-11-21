@@ -41,7 +41,7 @@ func AddCard(ctx context.Context, conn *sql.DB, card poker.Card, serial string) 
 		Serial:   serial,
 		CardSuit: card.Suit.String(),
 		CardRank: card.Rank.String(),
-		GameID:   sql.NullString{String: gameID, Valid: true},
+		GameID:   gameID,
 		IsBoard:  false,
 	})
 	if err != nil {

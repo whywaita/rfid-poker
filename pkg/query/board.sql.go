@@ -7,7 +7,6 @@ package query
 
 import (
 	"context"
-	"database/sql"
 )
 
 const addCardToBoard = `-- name: AddCardToBoard :exec
@@ -19,7 +18,7 @@ type AddCardToBoardParams struct {
 	CardSuit string
 	CardRank string
 	Serial   string
-	GameID   sql.NullString
+	GameID   string
 }
 
 func (q *Queries) AddCardToBoard(ctx context.Context, arg AddCardToBoardParams) error {

@@ -48,3 +48,6 @@ DELETE FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.
 
 -- name: DeleteHandAll :exec
 DELETE FROM hand;
+
+-- name: DeleteHandByGameID :exec
+DELETE FROM hand WHERE game_id = ?;

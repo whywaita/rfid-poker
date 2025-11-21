@@ -60,7 +60,7 @@ func AddBoard(ctx context.Context, conn *sql.DB, cards []poker.Card, serial stri
 				CardSuit: c.Suit.String(),
 				CardRank: c.Rank.String(),
 				Serial:   serial,
-				GameID:   sql.NullString{String: gameID, Valid: true},
+				GameID:   gameID,
 			})
 			if err != nil {
 				tx.Rollback()

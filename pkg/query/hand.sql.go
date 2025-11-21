@@ -17,7 +17,7 @@ VALUES (?, false, ?)
 
 type AddHandParams struct {
 	PlayerID int32
-	GameID   sql.NullString
+	GameID   string
 }
 
 func (q *Queries) AddHand(ctx context.Context, arg AddHandParams) (sql.Result, error) {
@@ -39,6 +39,15 @@ DELETE FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.
 
 func (q *Queries) DeleteHandByAntennaID(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteHandByAntennaID, id)
+	return err
+}
+
+const deleteHandByGameID = `-- name: DeleteHandByGameID :exec
+DELETE FROM hand WHERE game_id = ?
+`
+
+func (q *Queries) DeleteHandByGameID(ctx context.Context, gameID string) error {
+	_, err := q.db.ExecContext(ctx, deleteHandByGameID, gameID)
 	return err
 }
 

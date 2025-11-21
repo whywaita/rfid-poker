@@ -78,20 +78,48 @@ func FinishCurrentGame(ctx context.Context, conn *sql.DB) error {
 }
 
 func ClearGame(ctx context.Context, conn *sql.DB) error {
-	// Finish current game before clearing
-	if err := FinishCurrentGame(ctx, conn); err != nil {
-		return fmt.Errorf("FinishCurrentGame(): %w", err)
-	}
-
 	db := query.New(conn)
 
-	if err := db.DeleteCardAll(ctx); err != nil {
-		return fmt.Errorf("db.DeleteCardAll(): %w", err)
+	// Get current game before finishing
+	game, err := db.GetCurrentGame(ctx)
+	if err == sql.ErrNoRows {
+		// No active game to clear
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("db.GetCurrentGame(): %w", err)
 	}
 
-	if err := db.DeleteHandAll(ctx); err != nil {
-		return fmt.Errorf("db.DeleteHandAll(): %w", err)
+	gameID := game.ID
+
+	// Archive hands to hand_history before clearing
+	if err := db.CopyHandsToHistory(ctx, gameID); err != nil {
+		return fmt.Errorf("db.CopyHandsToHistory(): %w", err)
 	}
+
+	// Finish current game
+	if err := db.FinishGame(ctx, gameID); err != nil {
+		return fmt.Errorf("db.FinishGame(): %w", err)
+	}
+
+	// Delete cards and hands for this game
+	if err := db.DeleteCardByGameID(ctx, gameID); err != nil {
+		return fmt.Errorf("db.DeleteCardByGameID(): %w", err)
+	}
+
+	if err := db.DeleteHandByGameID(ctx, gameID); err != nil {
+		return fmt.Errorf("db.DeleteHandByGameID(): %w", err)
+	}
+
+	// Delete the game itself
+	if err := db.DeleteGameByID(ctx, gameID); err != nil {
+		return fmt.Errorf("db.DeleteGameByID(): %w", err)
+	}
+
+	slog.InfoContext(ctx, "Game cleared and archived",
+		slog.String("game_id", gameID),
+		slog.String("event", "game_cleared"),
+		slog.Time("started_at", game.StartedAt))
 
 	return nil
 }

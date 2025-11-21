@@ -19,7 +19,7 @@ type AddCardParams struct {
 	CardRank string
 	Serial   string
 	IsBoard  bool
-	GameID   sql.NullString
+	GameID   string
 }
 
 func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (sql.Result, error) {
@@ -56,6 +56,15 @@ DELETE FROM card WHERE hand_id IN (SELECT id FROM hand WHERE player_id = (SELECT
 
 func (q *Queries) DeleteCardByAntennaID(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteCardByAntennaID, id)
+	return err
+}
+
+const deleteCardByGameID = `-- name: DeleteCardByGameID :exec
+DELETE FROM card WHERE game_id = ?
+`
+
+func (q *Queries) DeleteCardByGameID(ctx context.Context, gameID string) error {
+	_, err := q.db.ExecContext(ctx, deleteCardByGameID, gameID)
 	return err
 }
 
