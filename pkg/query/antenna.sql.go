@@ -155,6 +155,35 @@ func (q *Queries) GetAntennaTypeIdIsUnknown(ctx context.Context) (int32, error) 
 	return id, err
 }
 
+const getBoardAntennaByDeviceIDPrefix = `-- name: GetBoardAntennaByDeviceIDPrefix :one
+SELECT antenna.id, serial, antenna_type_id, player_id, antenna_type.name AS antenna_type_name
+FROM antenna
+JOIN antenna_type ON antenna_type.id = antenna.antenna_type_id
+WHERE antenna_type.name = 'board' AND serial LIKE CONCAT(?, '%')
+LIMIT 1
+`
+
+type GetBoardAntennaByDeviceIDPrefixRow struct {
+	ID              int32
+	Serial          string
+	AntennaTypeID   int32
+	PlayerID        sql.NullInt32
+	AntennaTypeName string
+}
+
+func (q *Queries) GetBoardAntennaByDeviceIDPrefix(ctx context.Context, concat interface{}) (GetBoardAntennaByDeviceIDPrefixRow, error) {
+	row := q.db.QueryRowContext(ctx, getBoardAntennaByDeviceIDPrefix, concat)
+	var i GetBoardAntennaByDeviceIDPrefixRow
+	err := row.Scan(
+		&i.ID,
+		&i.Serial,
+		&i.AntennaTypeID,
+		&i.PlayerID,
+		&i.AntennaTypeName,
+	)
+	return i, err
+}
+
 const resetAntenna = `-- name: ResetAntenna :exec
 DELETE FROM antenna
 `

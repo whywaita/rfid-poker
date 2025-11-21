@@ -11,7 +11,7 @@ import (
 )
 
 const addCard = `-- name: AddCard :execresult
-INSERT INTO card (card_suit, card_rank, serial, is_board) VALUES (?, ?, ?, ?)
+INSERT INTO card (card_suit, card_rank, serial, is_board, game_id) VALUES (?, ?, ?, ?, ?)
 `
 
 type AddCardParams struct {
@@ -19,6 +19,7 @@ type AddCardParams struct {
 	CardRank string
 	Serial   string
 	IsBoard  bool
+	GameID   string
 }
 
 func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (sql.Result, error) {
@@ -27,6 +28,7 @@ func (q *Queries) AddCard(ctx context.Context, arg AddCardParams) (sql.Result, e
 		arg.CardRank,
 		arg.Serial,
 		arg.IsBoard,
+		arg.GameID,
 	)
 }
 
@@ -55,6 +57,46 @@ DELETE FROM card WHERE hand_id IN (SELECT id FROM hand WHERE player_id = (SELECT
 func (q *Queries) DeleteCardByAntennaID(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteCardByAntennaID, id)
 	return err
+}
+
+const deleteCardByGameID = `-- name: DeleteCardByGameID :exec
+DELETE FROM card WHERE game_id = ?
+`
+
+func (q *Queries) DeleteCardByGameID(ctx context.Context, gameID string) error {
+	_, err := q.db.ExecContext(ctx, deleteCardByGameID, gameID)
+	return err
+}
+
+const getAntennaTypesWithCardsInCurrentGame = `-- name: GetAntennaTypesWithCardsInCurrentGame :many
+SELECT DISTINCT antenna_type.name AS antenna_type_name
+FROM card
+JOIN antenna ON card.serial = antenna.serial
+JOIN antenna_type ON antenna.antenna_type_id = antenna_type.id
+WHERE card.game_id = (SELECT id FROM game WHERE status = 'active' ORDER BY started_at DESC LIMIT 1)
+`
+
+func (q *Queries) GetAntennaTypesWithCardsInCurrentGame(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getAntennaTypesWithCardsInCurrentGame)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var antenna_type_name string
+		if err := rows.Scan(&antenna_type_name); err != nil {
+			return nil, err
+		}
+		items = append(items, antenna_type_name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getCard = `-- name: GetCard :one

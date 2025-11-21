@@ -75,6 +75,13 @@ func CalcEquity(ctx context.Context, q *query.Queries) error {
 		return fmt.Errorf("GetBoard(): %w", err)
 	}
 
+	// Skip equity calculation if board has 1 or 2 cards (incomplete state)
+	// Equity can be calculated for 0 (preflop), 3 (flop), 4 (turn), or 5 (river) cards
+	if len(board) == 1 || len(board) == 2 {
+		logger.InfoContext(ctx, "Board is incomplete, skipping equity calculation", "board_count", len(board))
+		return nil
+	}
+
 	logger.InfoContext(ctx, "Start EvaluateEquityByMadeHandWithCommunity", "players", players, "board", board)
 	equities, err := poker.EvaluateEquityByMadeHandWithCommunity(players, board)
 	if err != nil {

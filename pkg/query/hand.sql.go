@@ -11,12 +11,17 @@ import (
 )
 
 const addHand = `-- name: AddHand :execresult
-INSERT INTO hand (player_id, is_muck)
-VALUES (?, false)
+INSERT INTO hand (player_id, is_muck, game_id)
+VALUES (?, false, ?)
 `
 
-func (q *Queries) AddHand(ctx context.Context, playerID int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, addHand, playerID)
+type AddHandParams struct {
+	PlayerID int32
+	GameID   string
+}
+
+func (q *Queries) AddHand(ctx context.Context, arg AddHandParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, addHand, arg.PlayerID, arg.GameID)
 }
 
 const deleteHandAll = `-- name: DeleteHandAll :exec
@@ -34,6 +39,15 @@ DELETE FROM hand WHERE player_id = (SELECT player_id FROM antenna WHERE antenna.
 
 func (q *Queries) DeleteHandByAntennaID(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteHandByAntennaID, id)
+	return err
+}
+
+const deleteHandByGameID = `-- name: DeleteHandByGameID :exec
+DELETE FROM hand WHERE game_id = ?
+`
+
+func (q *Queries) DeleteHandByGameID(ctx context.Context, gameID string) error {
+	_, err := q.db.ExecContext(ctx, deleteHandByGameID, gameID)
 	return err
 }
 

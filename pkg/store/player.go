@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"sort"
 
@@ -16,6 +16,12 @@ import (
 func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial string) error {
 	if len(input) != 2 {
 		return fmt.Errorf("invalid input length (not 2): %v", input)
+	}
+
+	// Get or create current game
+	gameID, err := GetOrCreateCurrentGame(ctx, conn)
+	if err != nil {
+		return fmt.Errorf("GetOrCreateCurrentGame(): %w", err)
 	}
 
 	tx, err := conn.BeginTx(ctx, nil)
@@ -39,11 +45,21 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 		return fmt.Errorf("q.GetPlayerBySerial(): %w", err)
 	}
 
-	hand, err := qWithTx.AddHand(ctx, player.ID)
+	hand, err := qWithTx.AddHand(ctx, query.AddHandParams{
+		PlayerID: player.ID,
+		GameID:   gameID,
+	})
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("db.AddHand(): %w", err)
 	}
+
+	slog.InfoContext(ctx, "Added hand for player",
+		slog.String("game_id", gameID),
+		slog.String("event", "hand_added"),
+		slog.String("player_name", player.Name),
+		slog.Int("player_id", int(player.ID)),
+		slog.String("serial", serial))
 	handResult, err := hand.LastInsertId()
 	if err != nil {
 		tx.Rollback()
@@ -60,11 +76,19 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 			CardRank: c.Rank.String(),
 			Serial:   serial,
 			IsBoard:  false,
+			GameID:   gameID,
 		})
 		if err != nil && !sqlgraph.IsUniqueConstraintError(err) {
 			tx.Rollback()
 			return fmt.Errorf("q.AddCard(): %w", err)
 		}
+		slog.InfoContext(ctx, "Added card to player hand",
+			slog.String("game_id", gameID),
+			slog.String("event", "card_added"),
+			slog.String("card_rank", c.Rank.String()),
+			slog.String("card_suit", c.Suit.String()),
+			slog.Bool("is_board", false),
+			slog.String("serial", serial))
 
 		dbCard, err := qWithTx.GetCardByRankSuit(ctx, query.GetCardByRankSuitParams{
 			CardRank: c.Rank.String(),
@@ -91,7 +115,16 @@ func AddHand(ctx context.Context, conn *sql.DB, input []poker.Card, serial strin
 }
 
 func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
-	log.Printf("MuckPlayer: %v", cards)
+	// Get current game ID for logging
+	gameID, err := GetOrCreateCurrentGame(ctx, conn)
+	if err != nil {
+		return fmt.Errorf("GetOrCreateCurrentGame(): %w", err)
+	}
+
+	slog.InfoContext(ctx, "Muck player initiated",
+		slog.String("game_id", gameID),
+		slog.String("event", "muck_initiated"),
+		slog.Int("card_count", len(cards)))
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("conn.BeginTx(): %w", err)
@@ -126,5 +159,10 @@ func MuckPlayer(ctx context.Context, conn *sql.DB, cards []poker.Card) error {
 		return fmt.Errorf("tx.Commit(): %w", err)
 	}
 
+	slog.InfoContext(ctx, "Player hand mucked",
+		slog.String("game_id", gameID),
+		slog.String("event", "hand_mucked"),
+		slog.Int("hand_id", int(hand.ID)),
+		slog.Int("player_id", int(hand.PlayerID)))
 	return nil
 }
