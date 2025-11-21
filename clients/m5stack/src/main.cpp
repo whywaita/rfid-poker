@@ -4,17 +4,17 @@
 #include <WiFi.h>
 #include <tuple>
 
-void readAllRfid(char macAddr[], String i_host);
-void setupRfId();
-std::tuple<String, String> setupNetwork();
-void postDeviceBoot(String macAddr, String i_host);
-char macStr[18];
-String i_host;
+#include <rfid_core.h>
+#include <config.h>
+#include "http_card_handler.h"
 
-// Add these declarations
-extern bool isPairComplete(int pair_id);
-extern const char *getClientType();
-extern int getRfidReaderCount();
+std::tuple<String, String> setupNetwork();
+
+// Global variables
+char macStr[18];
+String apiHost;
+HttpCardHandler* cardHandler = nullptr;
+RfidCore* rfidCore = nullptr;
 
 void setupAtom() {
   M5.begin(true, false, true); // Enable Serial, disable I2C, enable display
@@ -29,10 +29,9 @@ void setupAtom() {
   Serial.printf("Mac: %s\n", macStr);
   Serial.printf("SSID: %s\n", "Not connected");
 
-  String i_ssid;
-
+  String ssid;
   try {
-    std::tie(i_ssid, i_host) = setupNetwork();
+    std::tie(ssid, apiHost) = setupNetwork();
   } catch (const std::exception &e) {
     Serial.println("Network Error:");
     Serial.println(e.what());
@@ -42,11 +41,17 @@ void setupAtom() {
 
   Serial.println("RFID Reader");
   Serial.printf("Mac: %s\n", macStr);
-  Serial.printf("SSID: %s\n", i_ssid);
+  Serial.printf("SSID: %s\n", ssid.c_str());
 
-  postDeviceBoot(macStr, i_host);
+  // Initialize card handler and RFID core
+  cardHandler = new HttpCardHandler(String(macStr), apiHost);
+  rfidCore = new RfidCore(cardHandler);
 
-  setupRfId();
+  // Send boot message
+  cardHandler->onBoot("power_on");
+
+  // Setup RFID readers
+  rfidCore->begin();
 
   // Display CLIENT_TYPE and reader count
   const char *clientType = getClientType();
@@ -56,23 +61,22 @@ void setupAtom() {
 }
 
 void loopAtom() {
-  try {
-    readAllRfid(macStr, i_host);
+  if (rfidCore == nullptr) {
+    Serial.println("Error: RfidCore not initialized");
+    delay(1000);
+    return;
+  }
 
-    // Check if pair 1 is complete (we assume ATOM has 2 antennas = 1 pair)
-    if (isPairComplete(1)) {
-      // Light up the LED with green color when both antennas detect cards
-      M5.dis.drawpix(0, 0x00ff00); // Green
-    } else {
-      // Turn off the LED when not all antennas detect cards
-      M5.dis.drawpix(0, 0x000000); // Off
-    }
+  // Update RFID readers
+  rfidCore->update();
 
-  } catch (const std::exception &e) {
-    Serial.println("RFID Error:");
-    Serial.println(e.what());
-    // Blink red LED on error
-    M5.dis.drawpix(0, 0xff0000); // Red
+  // Check if pair 1 is complete (we assume ATOM has 2 antennas = 1 pair)
+  if (rfidCore->isPairComplete(1)) {
+    // Light up the LED with green color when both antennas detect cards
+    M5.dis.drawpix(0, 0x00ff00); // Green
+  } else {
+    // Turn off the LED when not all antennas detect cards
+    M5.dis.drawpix(0, 0x000000); // Off
   }
 
   M5.update();

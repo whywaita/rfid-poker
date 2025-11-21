@@ -1,0 +1,9 @@
+[project]
+name = "rfid-poker-client-m5stack-wired"
+version = "0.1.0"
+description = "RFID Poker M5Stack Wired Client (USB Serial)"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "platformio>=6.1.17",
+]
