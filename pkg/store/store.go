@@ -38,19 +38,50 @@ func CreateNewGame(ctx context.Context, conn *sql.DB) (string, error) {
 }
 
 // GetOrCreateCurrentGame returns the current active game ID, or creates a new one if none exists
+// This function uses a transaction to ensure atomicity of the check-and-create operation
 func GetOrCreateCurrentGame(ctx context.Context, conn *sql.DB) (string, error) {
-	db := query.New(conn)
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("conn.BeginTx(): %w", err)
+	}
+	defer func() {
+		if r := recover(); r != nil || err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	db := query.New(tx)
 
 	game, err := db.GetCurrentGame(ctx)
-	if err == sql.ErrNoRows {
-		// No active game, create a new one
-		return CreateNewGame(ctx, conn)
+	if err == nil {
+		// Game exists, commit and return
+		if err := tx.Commit(); err != nil {
+			return "", fmt.Errorf("tx.Commit(): %w", err)
+		}
+		return game.ID, nil
 	}
-	if err != nil {
+
+	if err != sql.ErrNoRows {
+		tx.Rollback()
 		return "", fmt.Errorf("db.GetCurrentGame(): %w", err)
 	}
 
-	return game.ID, nil
+	// No active game, create a new one within the same transaction
+	gameID := uuid.New().String()
+	if err := db.CreateGame(ctx, gameID); err != nil {
+		tx.Rollback()
+		return "", fmt.Errorf("db.CreateGame(): %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("tx.Commit(): %w", err)
+	}
+
+	slog.InfoContext(ctx, "New game started",
+		slog.String("game_id", gameID),
+		slog.String("event", "game_started"))
+
+	return gameID, nil
 }
 
 // FinishCurrentGame finishes the current active game
