@@ -3,6 +3,7 @@
 
 CURRENT_REVISION = $(shell git rev-parse --short HEAD)
 BUILD_LDFLAGS = "-X main.revision=$(CURRENT_REVISION)"
+BINARY_NAME = "cmd"
 
 DOCKER_IMAGE_NAME = "rfid-poker"
 
@@ -15,7 +16,7 @@ generate-sqlc:
 	sqlc generate
 
 build: ## Build the binary
-	go build -ldflags $(BUILD_LDFLAGS) -o bin/$(BINARY_NAME) cmd/cmd.go
+	go build -ldflags $(BUILD_LDFLAGS) -o bin/$(BINARY_NAME) cmd/server/main.go
 
 build-docker: ## Build the docker image
 	docker build -t $(DOCKER_IMAGE_NAME) .
