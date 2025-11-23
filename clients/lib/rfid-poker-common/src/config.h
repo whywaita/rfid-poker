@@ -10,8 +10,14 @@
 #define RFID_ADDRESS 0x28
 #define PIN_RESET 12
 
-// Card history cooldown (10 seconds)
+// Card history cooldown
+// For wired clients: 0.5 seconds (faster response for serial communication)
+// For other clients: 10 seconds (avoid overwhelming network)
+#ifdef WIRED_CLIENT
+#define CARD_SEND_COOLDOWN_MS 500
+#else
 #define CARD_SEND_COOLDOWN_MS 10000
+#endif
 
 // Maximum number of RFID readers supported
 #define MAX_RFID_READERS 6
