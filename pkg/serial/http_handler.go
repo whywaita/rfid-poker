@@ -75,7 +75,7 @@ func (h *HTTPMessageHandler) HandleCard(portName string, msg CardMessage) {
 
 	// Send to HTTP server
 	req := PostCardRequest{
-		UID:      msg.CardUID,
+		UID:      strings.TrimSpace(msg.CardUID),
 		DeviceID: deviceID,
 		PairID:   pairID,
 	}
