@@ -1,0 +1,27 @@
+[Unit]
+Description=RFID Poker Wired Client
+Documentation=https://github.com/whywaita/rfid-poker
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=dialout
+
+# wired-client binary path
+ExecStart=/usr/local/bin/wired-client -port "/dev/ttyUSB*" -server http://localhost:8080
+
+# Restart settings
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wired-client
+
+# Environment (uncomment and modify as needed)
+# Environment="SERVER_URL=http://192.168.1.100:8080"
+
+[Install]
+WantedBy=multi-user.target
