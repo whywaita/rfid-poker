@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/whywaita/rfid-poker/pkg/serial"
+	"github.com/whywaita/rfid-poker/pkg/version"
 )
 
 func main() {
@@ -23,18 +24,30 @@ func run() error {
 	var listPorts bool
 	var noHTTPSend bool
 	var serverURL string
+	var debug bool
 
 	flag.StringVar(&portPattern, "port", "", "Serial port pattern (e.g., /dev/ttyUSB0 or /dev/ttyUSB*)")
 	flag.IntVar(&baudRate, "baud", serial.DefaultBaudRate, "Baud rate")
 	flag.BoolVar(&listPorts, "list", false, "List available serial ports")
 	flag.BoolVar(&noHTTPSend, "no-http-send", false, "Disable HTTP POST to server (console output only)")
 	flag.StringVar(&serverURL, "server", "http://localhost:8080", "Server URL for HTTP POST")
+	flag.BoolVar(&debug, "debug", false, "Enable debug logging (shows comment lines from device)")
 	flag.Parse()
+
+	logLevel := slog.LevelInfo
+	if debug {
+		logLevel = slog.LevelDebug
+	}
 
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 		AddSource: false,
-		Level:     slog.LevelInfo,
+		Level:     logLevel,
 	})))
+
+	slog.Info("Starting wired-client",
+		slog.String("version", version.GetVersion()),
+		slog.String("commit", version.GetCommit()),
+	)
 
 	if listPorts {
 		return listSerialPorts()
