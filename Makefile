@@ -11,8 +11,8 @@ DOCKER_IMAGE_NAME = "rfid-poker"
 bin:
 	mkdir -p $@
 
-.PHOHY: bin/rdid-poker
-bin/rdid-poker: bin
+.PHOHY: bin/rfid-poker
+bin/rfid-poker: bin
 	go build -ldflags $(BUILD_LDFLAGS) -o $@ cmd/server/main.go
 .PHONY: bin/wired-client
 bin/wired-client: bin
