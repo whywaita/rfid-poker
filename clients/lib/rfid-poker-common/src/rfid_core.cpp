@@ -18,7 +18,7 @@ RfidCore::RfidCore(CardHandler* handler) : _handler(handler) {
 
 void RfidCore::begin() {
   Wire.begin();
-  Wire.setClock(100000);
+  Wire.setClock(I2C_CLOCK_SPEED);
   tca.address(PaHub_I2C_ADDRESS);
 
   for (uint8_t t = 0; t < getRfidReaderCount(); t++) {
@@ -140,8 +140,8 @@ void RfidCore::update() {
       if (_cardsDetected[channel]) {
         triggerReadUID(channel, uids[channel]);
         // Small delay to avoid overwhelming the output
-        if (channel < getRfidReaderCount() - 1) {
-          delay(100); // 100ms delay between messages
+        if (channel < getRfidReaderCount() - 1 && BOARD_INTER_CARD_DELAY_MS > 0) {
+          delay(BOARD_INTER_CARD_DELAY_MS);
         }
       }
     }

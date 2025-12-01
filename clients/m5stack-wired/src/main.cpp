@@ -55,5 +55,5 @@ void loop() {
   }
 
   M5.update();
-  delay(200); // Reduced from 1000ms for faster response
+  delay(MAIN_LOOP_DELAY_MS);
 }
