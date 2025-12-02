@@ -47,12 +47,17 @@ type Hand struct {
 }
 
 type HandHistory struct {
-	ID        int32
-	GameID    string
-	PlayerID  int32
-	Equity    sql.NullFloat64
-	IsMuck    bool
-	CreatedAt time.Time
+	ID         int32
+	GameID     string
+	PlayerID   int32
+	Equity     sql.NullFloat64
+	IsMuck     bool
+	CreatedAt  time.Time
+	PlayerName sql.NullString
+	CardARank  sql.NullString
+	CardASuit  sql.NullString
+	CardBRank  sql.NullString
+	CardBSuit  sql.NullString
 }
 
 type Player struct {

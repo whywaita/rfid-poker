@@ -7,13 +7,21 @@ package query
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
 const copyHandsToHistory = `-- name: CopyHandsToHistory :exec
-INSERT INTO hand_history (game_id, player_id, equity, is_muck)
-SELECT hand.game_id, hand.player_id, hand.equity, hand.is_muck
+INSERT INTO hand_history (game_id, player_id, player_name, equity, is_muck, card_a_rank, card_a_suit, card_b_rank, card_b_suit)
+SELECT hand.game_id, hand.player_id, player.name, hand.equity, hand.is_muck,
+       card_a.card_rank, card_a.card_suit,
+       card_b.card_rank, card_b.card_suit
 FROM hand
+JOIN player ON hand.player_id = player.id
+LEFT JOIN card AS card_a ON hand.id = card_a.hand_id
+LEFT JOIN card AS card_b ON hand.id = card_b.hand_id AND card_a.id < card_b.id
 WHERE hand.game_id = ?
+  AND (card_b.id IS NOT NULL OR card_a.id IS NULL)
 `
 
 func (q *Queries) CopyHandsToHistory(ctx context.Context, gameID string) error {
@@ -22,27 +30,46 @@ func (q *Queries) CopyHandsToHistory(ctx context.Context, gameID string) error {
 }
 
 const getHandHistoryByGameID = `-- name: GetHandHistoryByGameID :many
-SELECT id, game_id, player_id, equity, is_muck, created_at
+SELECT id, game_id, player_id, player_name, equity, is_muck, card_a_rank, card_a_suit, card_b_rank, card_b_suit, created_at
 FROM hand_history
 WHERE game_id = ?
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetHandHistoryByGameID(ctx context.Context, gameID string) ([]HandHistory, error) {
+type GetHandHistoryByGameIDRow struct {
+	ID         int32
+	GameID     string
+	PlayerID   int32
+	PlayerName sql.NullString
+	Equity     sql.NullFloat64
+	IsMuck     bool
+	CardARank  sql.NullString
+	CardASuit  sql.NullString
+	CardBRank  sql.NullString
+	CardBSuit  sql.NullString
+	CreatedAt  time.Time
+}
+
+func (q *Queries) GetHandHistoryByGameID(ctx context.Context, gameID string) ([]GetHandHistoryByGameIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getHandHistoryByGameID, gameID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []HandHistory
+	var items []GetHandHistoryByGameIDRow
 	for rows.Next() {
-		var i HandHistory
+		var i GetHandHistoryByGameIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.GameID,
 			&i.PlayerID,
+			&i.PlayerName,
 			&i.Equity,
 			&i.IsMuck,
+			&i.CardARank,
+			&i.CardASuit,
+			&i.CardBRank,
+			&i.CardBSuit,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -59,27 +86,46 @@ func (q *Queries) GetHandHistoryByGameID(ctx context.Context, gameID string) ([]
 }
 
 const getHandHistoryByPlayerID = `-- name: GetHandHistoryByPlayerID :many
-SELECT id, game_id, player_id, equity, is_muck, created_at
+SELECT id, game_id, player_id, player_name, equity, is_muck, card_a_rank, card_a_suit, card_b_rank, card_b_suit, created_at
 FROM hand_history
 WHERE player_id = ?
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetHandHistoryByPlayerID(ctx context.Context, playerID int32) ([]HandHistory, error) {
+type GetHandHistoryByPlayerIDRow struct {
+	ID         int32
+	GameID     string
+	PlayerID   int32
+	PlayerName sql.NullString
+	Equity     sql.NullFloat64
+	IsMuck     bool
+	CardARank  sql.NullString
+	CardASuit  sql.NullString
+	CardBRank  sql.NullString
+	CardBSuit  sql.NullString
+	CreatedAt  time.Time
+}
+
+func (q *Queries) GetHandHistoryByPlayerID(ctx context.Context, playerID int32) ([]GetHandHistoryByPlayerIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getHandHistoryByPlayerID, playerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []HandHistory
+	var items []GetHandHistoryByPlayerIDRow
 	for rows.Next() {
-		var i HandHistory
+		var i GetHandHistoryByPlayerIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.GameID,
 			&i.PlayerID,
+			&i.PlayerName,
 			&i.Equity,
 			&i.IsMuck,
+			&i.CardARank,
+			&i.CardASuit,
+			&i.CardBRank,
+			&i.CardBSuit,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
