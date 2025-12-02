@@ -7,6 +7,8 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/whywaita/rfid-poker/pkg/serial"
 	"github.com/whywaita/rfid-poker/pkg/version"
@@ -25,6 +27,7 @@ func run() error {
 	var noHTTPSend bool
 	var serverURL string
 	var debug bool
+	var noWatch bool
 
 	flag.StringVar(&portPattern, "port", "", "Serial port pattern (e.g., /dev/ttyUSB0 or /dev/ttyUSB*)")
 	flag.IntVar(&baudRate, "baud", serial.DefaultBaudRate, "Baud rate")
@@ -32,6 +35,7 @@ func run() error {
 	flag.BoolVar(&noHTTPSend, "no-http-send", false, "Disable HTTP POST to server (console output only)")
 	flag.StringVar(&serverURL, "server", "http://localhost:8080", "Server URL for HTTP POST")
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging (shows comment lines from device)")
+	flag.BoolVar(&noWatch, "no-watch", false, "Disable dynamic USB hotplug support (use static port list)")
 	flag.Parse()
 
 	logLevel := slog.LevelInfo
@@ -57,18 +61,6 @@ func run() error {
 		return fmt.Errorf("port pattern is required. Use -port flag or -list to see available ports")
 	}
 
-	// Expand glob pattern
-	ports, err := serial.ExpandPortPattern(portPattern)
-	if err != nil {
-		return fmt.Errorf("failed to expand port pattern: %w", err)
-	}
-
-	if len(ports) == 0 {
-		return fmt.Errorf("no serial ports found matching pattern: %s", portPattern)
-	}
-
-	slog.Info("Found serial ports", slog.Int("count", len(ports)), slog.Any("ports", ports))
-
 	// Create message handler based on flags
 	var handler serial.MessageHandler
 	if noHTTPSend {
@@ -82,9 +74,37 @@ func run() error {
 	// Create reader
 	reader := serial.NewReader(baudRate, handler)
 
-	// Read from multiple ports concurrently
-	ctx := context.Background()
-	return reader.ReadPorts(ctx, ports)
+	// Create context with signal handling
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle interrupt signals
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		<-sigCh
+		slog.Info("Received shutdown signal")
+		cancel()
+	}()
+
+	if noWatch {
+		// Static mode: read from existing ports only
+		ports, err := serial.ExpandPortPattern(portPattern)
+		if err != nil {
+			return fmt.Errorf("failed to expand port pattern: %w", err)
+		}
+
+		if len(ports) == 0 {
+			return fmt.Errorf("no serial ports found matching pattern: %s", portPattern)
+		}
+
+		slog.Info("Static mode: reading from existing ports only", slog.Int("count", len(ports)), slog.Any("ports", ports))
+		return reader.ReadPorts(ctx, ports)
+	}
+
+	// Default: Dynamic hotplug mode - watch for device connect/disconnect
+	slog.Info("Watch mode enabled: monitoring for USB hotplug events")
+	return reader.WatchAndReadPorts(ctx, portPattern)
 }
 
 func listSerialPorts() error {
