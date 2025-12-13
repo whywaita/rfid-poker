@@ -151,3 +151,22 @@ You can use the newest code in GitHub Pages ([https://whywaita.github.io/rfid-po
 This is a M5Stack application that runs on a M5Stack device.
 
 [client/m5stack](./client/m5stack) directory is a M5Stack application.
+
+### Test Wired Client (Software Simulator)
+
+A software-only tool for testing the server without physical hardware.
+
+```bash
+# Build
+make bin/test-wired-client
+
+# Run
+./bin/test-wired-client --serial player1 --type player --server http://localhost:8080
+
+# Interactive usage
+> As        # Send Ace of Spades
+> Kh        # Send King of Hearts
+> quit      # Exit
+```
+
+See [docs/test-wired-client.md](./docs/test-wired-client.md) for detailed documentation.
