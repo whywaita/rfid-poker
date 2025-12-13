@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/whywaita/rfid-poker/pkg/query"
 	"github.com/whywaita/rfid-poker/pkg/store"
@@ -18,16 +19,43 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// sendCache holds the last sent data and timestamp for deduplication
+type sendCache struct {
+	mu       sync.Mutex
+	lastData []byte
+	lastSent time.Time
+}
+
+// shouldSend returns true if the data should be sent (different content or >1 second since last send)
+func (c *sendCache) shouldSend(data []byte) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := time.Now()
+
+	// If same content and less than 1 second since last send, skip
+	if bytes.Equal(c.lastData, data) && now.Sub(c.lastSent) < time.Second {
+		return false
+	}
+
+	c.lastData = make([]byte, len(data))
+	copy(c.lastData, data)
+	c.lastSent = now
+	return true
+}
+
 // WebSocketManager manages WebSocket connections
 type WebSocketManager struct {
 	mu       sync.Mutex
 	clients  map[*websocket.Conn]struct{}
 	notifyCh chan struct{}
+	cache    *sendCache
 }
 
 var wsManager = &WebSocketManager{
 	clients:  make(map[*websocket.Conn]struct{}),
 	notifyCh: make(chan struct{}, 1000), // with buffer
+	cache:    &sendCache{},
 }
 
 func (m *WebSocketManager) addClient(ws *websocket.Conn) {
@@ -44,13 +72,35 @@ func (m *WebSocketManager) removeClient(ws *websocket.Conn) {
 
 // broadcast sends a message to all WebSocket clients
 func (m *WebSocketManager) broadcast(q *query.Queries) {
+	ctx := context.Background()
+
+	// Get data once for all clients
+	send, err := getSend(ctx, q)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to get send data", "error", err)
+		return
+	}
+
+	b, err := json.Marshal(send)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to marshal send data", "error", err)
+		return
+	}
+
+	// Check cache: skip if same content and less than 1 second since last send
+	if !m.cache.shouldSend(b) {
+		slog.With("method", "broadcast").Debug("Skipped sending (cache hit)")
+		return
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	slog.With("method", "broadcast").Info("Send to message", slog.String("body", string(b)))
 	for client := range m.clients {
 		go func(ws *websocket.Conn) {
-			if err := sendPlayer(context.Background(), q, ws); err != nil {
-				slog.WarnContext(context.Background(), "failed to send update to WebSocket", "error", err)
+			if err := sendRawMessage(ctx, ws, b); err != nil {
+				slog.WarnContext(ctx, "failed to send update to WebSocket", "error", err)
 			}
 		}(client)
 	}
@@ -123,6 +173,10 @@ func sendPlayer(ctx context.Context, q *query.Queries, ws *websocket.Conn) error
 	}
 
 	slog.With("method", "sendPlayer").Info("Send to message", slog.String("body", string(b)))
+	return sendRawMessage(ctx, ws, b)
+}
+
+func sendRawMessage(ctx context.Context, ws *websocket.Conn, b []byte) error {
 	w, err := ws.Writer(ctx, websocket.MessageText)
 	if err != nil {
 		return fmt.Errorf("ws.Writer(): %w", err)

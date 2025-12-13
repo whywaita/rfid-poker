@@ -5,17 +5,21 @@ go 1.24.0
 require (
 	entgo.io/ent v0.14.3
 	github.com/coder/websocket v1.8.13
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-sql-driver/mysql v1.9.2
+	github.com/goccy/go-json v0.10.5
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/configor v1.2.2
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/whywaita/poker-go v0.0.0-20240128181615-ff338443efbd
+	go.bug.st/serial v1.6.4
 )
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.2.0 // indirect
+	github.com/creack/goselect v0.1.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
