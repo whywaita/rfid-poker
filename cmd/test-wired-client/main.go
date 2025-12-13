@@ -16,15 +16,9 @@ import (
 	"github.com/goccy/go-json"
 	"gopkg.in/yaml.v3"
 
+	"github.com/whywaita/rfid-poker/pkg/serial"
 	"github.com/whywaita/rfid-poker/pkg/version"
 )
-
-// PostCardRequest represents the request body for POST /card endpoint
-type PostCardRequest struct {
-	UID      string `json:"uid"`
-	DeviceID string `json:"device_id"`
-	PairID   int    `json:"pair_id"`
-}
 
 // ConfigFile represents the minimal config.yaml structure we need
 type ConfigFile struct {
@@ -185,7 +179,7 @@ func run() error {
 }
 
 func sendCard(client *http.Client, serverURL, deviceID string, pairID int, uid string) error {
-	req := PostCardRequest{
+	req := serial.PostCardRequest{
 		UID:      uid,
 		DeviceID: deviceID,
 		PairID:   pairID,
@@ -212,11 +206,15 @@ func sendCard(client *http.Client, serverURL, deviceID string, pairID int, uid s
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNotModified {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	// Check for acceptable status codes
+	acceptableCodes := []int{http.StatusOK, http.StatusCreated, http.StatusNotModified}
+	for _, code := range acceptableCodes {
+		if resp.StatusCode == code {
+			return nil
+		}
 	}
 
-	return nil
+	return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 }
 
 func listCards(cardIDs map[string]string) {

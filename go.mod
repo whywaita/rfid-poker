@@ -14,6 +14,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/whywaita/poker-go v0.0.0-20240128181615-ff338443efbd
 	go.bug.st/serial v1.6.4
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -33,5 +34,4 @@ require (
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
