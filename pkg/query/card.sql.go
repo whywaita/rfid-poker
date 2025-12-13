@@ -99,6 +99,42 @@ func (q *Queries) GetAntennaTypesWithCardsInCurrentGame(ctx context.Context) ([]
 	return items, nil
 }
 
+const getAntennasWithCardsInCurrentGame = `-- name: GetAntennasWithCardsInCurrentGame :many
+SELECT DISTINCT antenna.serial, antenna_type.name AS antenna_type_name
+FROM card
+JOIN antenna ON card.serial = antenna.serial
+JOIN antenna_type ON antenna.antenna_type_id = antenna_type.id
+WHERE card.game_id = (SELECT id FROM game WHERE status = 'active' ORDER BY started_at DESC LIMIT 1)
+`
+
+type GetAntennasWithCardsInCurrentGameRow struct {
+	Serial          string
+	AntennaTypeName string
+}
+
+func (q *Queries) GetAntennasWithCardsInCurrentGame(ctx context.Context) ([]GetAntennasWithCardsInCurrentGameRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAntennasWithCardsInCurrentGame)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAntennasWithCardsInCurrentGameRow
+	for rows.Next() {
+		var i GetAntennasWithCardsInCurrentGameRow
+		if err := rows.Scan(&i.Serial, &i.AntennaTypeName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCard = `-- name: GetCard :one
 SELECT id, card_suit, card_rank, hand_id, is_board FROM card WHERE id = ?
 `

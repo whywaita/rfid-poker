@@ -18,7 +18,7 @@ func HandleDeleteAdminGame(c echo.Context, conn *sql.DB) error {
 	}
 
 	// Reset all antenna type timestamps
-	resetAntennaTypeTimestamps()
+	resetAntennaTimestamps()
 
 	notifyClients()
 

@@ -31,3 +31,10 @@ FROM card
 JOIN antenna ON card.serial = antenna.serial
 JOIN antenna_type ON antenna.antenna_type_id = antenna_type.id
 WHERE card.game_id = (SELECT id FROM game WHERE status = 'active' ORDER BY started_at DESC LIMIT 1);
+
+-- name: GetAntennasWithCardsInCurrentGame :many
+SELECT DISTINCT antenna.serial, antenna_type.name AS antenna_type_name
+FROM card
+JOIN antenna ON card.serial = antenna.serial
+JOIN antenna_type ON antenna.antenna_type_id = antenna_type.id
+WHERE card.game_id = (SELECT id FROM game WHERE status = 'active' ORDER BY started_at DESC LIMIT 1);

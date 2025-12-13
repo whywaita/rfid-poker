@@ -278,7 +278,7 @@ func processCard(ctx context.Context, conn *sql.DB, cc config.Config, uid string
 	}
 
 	// Update the last card read time for timeout detection
-	updateLastCardReadTime(newAntenna.AntennaTypeName)
+	updateLastCardReadTime(serial, newAntenna.AntennaTypeName)
 
 	return true, nil
 }

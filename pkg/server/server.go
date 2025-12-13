@@ -26,57 +26,67 @@ import (
 	"github.com/whywaita/rfid-poker/pkg/store"
 )
 
-type antennaTypeTimestamp struct {
+// antennaTimestamp tracks the last card read time for a specific antenna (by serial number)
+type antennaTimestamp struct {
 	lastReadTime time.Time
 	hasReadCard  bool
+	antennaType  string // "player", "board", or "muck"
 }
 
 var (
-	antennaTypeTimestamps = map[string]*antennaTypeTimestamp{
-		"player": {lastReadTime: time.Time{}, hasReadCard: false},
-		"board":  {lastReadTime: time.Time{}, hasReadCard: false},
-		"muck":   {lastReadTime: time.Time{}, hasReadCard: false},
-	}
-	antennaTypeTimestampsMu sync.RWMutex
+	// antennaTimestamps maps antenna serial number to its timestamp info
+	antennaTimestamps   = make(map[string]*antennaTimestamp)
+	antennaTimestampsMu sync.RWMutex
 )
 
-// updateLastCardReadTime updates the timestamp of the last card read for a specific antenna type
-func updateLastCardReadTime(antennaType string) {
-	antennaTypeTimestampsMu.Lock()
-	defer antennaTypeTimestampsMu.Unlock()
+// updateLastCardReadTime updates the timestamp of the last card read for a specific antenna
+func updateLastCardReadTime(serial, antennaType string) {
+	antennaTimestampsMu.Lock()
+	defer antennaTimestampsMu.Unlock()
 
-	if ts, ok := antennaTypeTimestamps[antennaType]; ok {
+	if ts, ok := antennaTimestamps[serial]; ok {
 		ts.lastReadTime = time.Now()
 		ts.hasReadCard = true
+	} else {
+		antennaTimestamps[serial] = &antennaTimestamp{
+			lastReadTime: time.Now(),
+			hasReadCard:  true,
+			antennaType:  antennaType,
+		}
 	}
 }
 
-// getAntennaTypeTimestamps returns a copy of all antenna type timestamps
-func getAntennaTypeTimestamps() map[string]antennaTypeTimestamp {
-	antennaTypeTimestampsMu.RLock()
-	defer antennaTypeTimestampsMu.RUnlock()
+// getAntennaTimestamps returns a copy of all antenna timestamps
+func getAntennaTimestamps() map[string]antennaTimestamp {
+	antennaTimestampsMu.RLock()
+	defer antennaTimestampsMu.RUnlock()
 
-	result := make(map[string]antennaTypeTimestamp)
-	for k, v := range antennaTypeTimestamps {
+	result := make(map[string]antennaTimestamp)
+	for k, v := range antennaTimestamps {
 		result[k] = *v
 	}
 	return result
 }
 
-// resetAntennaTypeTimestamps resets all antenna type timestamps
-func resetAntennaTypeTimestamps() {
-	antennaTypeTimestampsMu.Lock()
-	defer antennaTypeTimestampsMu.Unlock()
+// resetAntennaTimestamps resets all antenna timestamps
+func resetAntennaTimestamps() {
+	antennaTimestampsMu.Lock()
+	defer antennaTimestampsMu.Unlock()
 
-	for _, ts := range antennaTypeTimestamps {
-		ts.lastReadTime = time.Time{}
-		ts.hasReadCard = false
-	}
+	antennaTimestamps = make(map[string]*antennaTimestamp)
 }
 
-// restoreAntennaTypeTimestamps restores antenna type timestamps from the database on server startup
-func restoreAntennaTypeTimestamps(ctx context.Context, conn *sql.DB) error {
-	logger := slog.With("method", "restoreAntennaTypeTimestamps")
+// removeAntennaTimestamp removes a specific antenna from timestamp tracking
+func removeAntennaTimestamp(serial string) {
+	antennaTimestampsMu.Lock()
+	defer antennaTimestampsMu.Unlock()
+
+	delete(antennaTimestamps, serial)
+}
+
+// restoreAntennaTimestamps restores antenna timestamps from the database on server startup
+func restoreAntennaTimestamps(ctx context.Context, conn *sql.DB) error {
+	logger := slog.With("method", "restoreAntennaTimestamps")
 
 	q := query.New(conn)
 
@@ -91,25 +101,27 @@ func restoreAntennaTypeTimestamps(ctx context.Context, conn *sql.DB) error {
 		return fmt.Errorf("q.GetCurrentGame(): %w", err)
 	}
 
-	// Get all antenna types that have cards in the current game
-	antennaTypes, err := q.GetAntennaTypesWithCardsInCurrentGame(ctx)
+	// Get all antennas that have cards in the current game
+	antennas, err := q.GetAntennasWithCardsInCurrentGame(ctx)
 	if err != nil {
-		return fmt.Errorf("q.GetAntennaTypesWithCardsInCurrentGame(): %w", err)
+		return fmt.Errorf("q.GetAntennasWithCardsInCurrentGame(): %w", err)
 	}
 
-	// Restore timestamps for antenna types that have cards
-	antennaTypeTimestampsMu.Lock()
-	defer antennaTypeTimestampsMu.Unlock()
+	// Restore timestamps for antennas that have cards
+	antennaTimestampsMu.Lock()
+	defer antennaTimestampsMu.Unlock()
 
 	now := time.Now()
-	for _, antennaTypeName := range antennaTypes {
-		if ts, ok := antennaTypeTimestamps[antennaTypeName]; ok {
-			ts.hasReadCard = true
-			ts.lastReadTime = now
-			logger.InfoContext(ctx, "restored antenna type timestamp",
-				"antenna_type", antennaTypeName,
-				"last_read_time", now)
+	for _, antenna := range antennas {
+		antennaTimestamps[antenna.Serial] = &antennaTimestamp{
+			lastReadTime: now,
+			hasReadCard:  true,
+			antennaType:  antenna.AntennaTypeName,
 		}
+		logger.InfoContext(ctx, "restored antenna timestamp",
+			"serial", antenna.Serial,
+			"antenna_type", antenna.AntennaTypeName,
+			"last_read_time", now)
 	}
 
 	return nil
@@ -135,48 +147,65 @@ func startGameTimeoutChecker(ctx context.Context, conn *sql.DB) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				timestamps := getAntennaTypeTimestamps()
+				timestamps := getAntennaTimestamps()
 
-				// Check if player and board have both read cards
-				playerTs, hasPlayer := timestamps["player"]
-				boardTs, hasBoard := timestamps["board"]
+				// Categorize antennas by type
+				var activePlayerAntennas []string   // player antennas that have read cards
+				var timedOutPlayerAntennas []string // player antennas that have timed out
+				var hasActiveBoard bool             // whether board has active cards
 
-				// Game must have started: both player and board must have read cards
-				if !hasPlayer || !playerTs.hasReadCard || !hasBoard || !boardTs.hasReadCard {
-					// Game hasn't properly started yet
-					continue
-				}
-
-				// Check if all antenna types that have read cards have timed out
-				var activeTypes []string      // antenna types that have read cards
-				var timedOutTypes []string    // antenna types that have timed out
-				var stillActiveTypes []string // antenna types still reading cards
-
-				for antennaType, ts := range timestamps {
-					// Skip if no card has been read yet for this antenna type
+				for serial, ts := range timestamps {
 					if !ts.hasReadCard {
 						continue
 					}
 
-					activeTypes = append(activeTypes, antennaType)
-
 					elapsed := time.Since(ts.lastReadTime)
-					if elapsed >= time.Duration(timeoutSeconds)*time.Second {
-						timedOutTypes = append(timedOutTypes, antennaType)
-					} else {
-						stillActiveTypes = append(stillActiveTypes, antennaType)
+					isTimedOut := elapsed >= time.Duration(timeoutSeconds)*time.Second
+
+					switch ts.antennaType {
+					case "player":
+						activePlayerAntennas = append(activePlayerAntennas, serial)
+						if isTimedOut {
+							timedOutPlayerAntennas = append(timedOutPlayerAntennas, serial)
+						}
+					case "board":
+						if !isTimedOut {
+							hasActiveBoard = true
+						}
 					}
 				}
 
-				// Only clear game if:
-				// 1. Both player and board have read cards (checked above)
-				// 2. ALL active antenna types have timed out
-				shouldClearGame := len(activeTypes) > 0 && len(stillActiveTypes) == 0
+				// Game must have started: at least one player and board must have read cards
+				if len(activePlayerAntennas) == 0 || !hasActiveBoard {
+					// Game hasn't properly started yet
+					continue
+				}
 
-				if shouldClearGame {
-					slog.InfoContext(ctx, "game timeout detected, clearing game",
+				// Remove timed out players from timestamp tracking (but don't muck them)
+				// Muck should only happen via muck antenna, not via timeout
+				for _, serial := range timedOutPlayerAntennas {
+					slog.InfoContext(ctx, "player antenna timed out, removing from tracking",
+						"serial", serial,
+						"timeout_seconds", timeoutSeconds)
+
+					// Remove from timestamp tracking (don't muck - that's only for muck antenna)
+					removeAntennaTimestamp(serial)
+				}
+
+				// Re-check active players after removal
+				timestamps = getAntennaTimestamps()
+				activePlayerCount := 0
+				for _, ts := range timestamps {
+					if ts.hasReadCard && ts.antennaType == "player" {
+						activePlayerCount++
+					}
+				}
+
+				// Clear game if all players have timed out
+				if activePlayerCount == 0 && len(activePlayerAntennas) > 0 {
+					slog.InfoContext(ctx, "all players timed out, clearing game",
 						"timeout_seconds", timeoutSeconds,
-						"timed_out_types", timedOutTypes)
+						"timed_out_players", timedOutPlayerAntennas)
 
 					// Clear the game
 					if err := store.ClearGame(context.Background(), conn); err != nil {
@@ -184,8 +213,8 @@ func startGameTimeoutChecker(ctx context.Context, conn *sql.DB) {
 						continue
 					}
 
-					// Reset all antenna type timestamps
-					resetAntennaTypeTimestamps()
+					// Reset all antenna timestamps
+					resetAntennaTimestamps()
 
 					// Notify clients
 					notifyClients()
@@ -210,7 +239,7 @@ func Run(ctx context.Context) error {
 	}
 
 	// Restore antenna type timestamps from database
-	if err := restoreAntennaTypeTimestamps(ctx, conn); err != nil {
+	if err := restoreAntennaTimestamps(ctx, conn); err != nil {
 		slog.WarnContext(ctx, "failed to restore antenna type timestamps", "error", err)
 		// Continue server startup even if restoration fails
 	}
