@@ -3,7 +3,7 @@ module github.com/whywaita/rfid-poker
 go 1.24.0
 
 require (
-	entgo.io/ent v0.14.3
+	entgo.io/ent v0.14.5
 	github.com/coder/websocket v1.8.13
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-sql-driver/mysql v1.9.2
