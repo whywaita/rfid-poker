@@ -42,8 +42,12 @@ export RFID_POKER_MYSQL_HOST=<your_mysql_host>
 export RFID_POKER_MYSQL_PORT=<your_mysql_port>
 export RFID_POKER_MYSQL_DATABASE=<your_mysql_database>
 
+# Optional: Auto-clear game when players/board stop sending cards.
+# 0 disables timeout. Default: 10
+export RFID_POKER_CLIENT_TIMEOUT_SECONDS=10
+
 # Run the server
-$ go run main.go
+$ go run ./cmd/server
 ```
 
 ## Components
@@ -60,7 +64,7 @@ The body of the message is as follows:
 
 ```json
 {
-  "boards": [
+  "board": [
     {
       "rank": "A",
       "suit": "hearts"
@@ -99,7 +103,7 @@ The body of the message is as follows:
     },
     {
       "name": "Player 2",
-      "cards": [
+      "hand": [
         {
           "rank": "A",
           "suit": "clubs"
@@ -117,7 +121,7 @@ The body of the message is as follows:
 
 #### POST /device/boot
 
-The server will send a message to the device to boot.
+The device should POST this message when it boots.
 
 ```json
 {
@@ -128,13 +132,13 @@ The server will send a message to the device to boot.
 
 #### POST /card
 
-The server will send a message to the device to read a card.
+The device (or wired client) should POST this message when it reads a card.
 
 ```json
 {
   "device_id": "device_id",    // as Mac address (in M5stack)
   "pair_id": 1,                // antenna pair id
-  "card_id": "040e3bd2286b85"  // as UID of NFC card
+  "uid": "040e3bd2286b85"      // as UID of NFC card (spaces are allowed)
 }
 ```
 
@@ -150,4 +154,4 @@ You can use the newest code in GitHub Pages ([https://whywaita.github.io/rfid-po
 
 This is a M5Stack application that runs on a M5Stack device.
 
-[client/m5stack](./client/m5stack) directory is a M5Stack application.
+[clients/m5stack](./clients/m5stack) directory is a M5Stack application.
