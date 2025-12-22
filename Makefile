@@ -17,6 +17,9 @@ bin/rfid-poker: bin
 .PHONY: bin/wired-client
 bin/wired-client: bin
 	go build -ldflags $(BUILD_LDFLAGS) -o $@ cmd/wired-client/main.go
+.PHONY: bin/test-wired-client
+bin/test-wired-client: bin
+	go build -ldflags $(BUILD_LDFLAGS) -o $@ cmd/test-wired-client/main.go
 
 help:
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
