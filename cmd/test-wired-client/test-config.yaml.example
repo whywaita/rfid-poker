@@ -1,0 +1,26 @@
+# Example test-config.yaml for test-wired-client
+# This file defines which antennas to simulate
+# Cards are added dynamically in the TUI using 'a' key
+
+# MAC addresses below are from RFC 7042 documentation range (00:00:5E:00:53:XX)
+
+antennas:
+  # Player antennas - simulate player hands
+  # pair_id is used in POST /card request (default: 1 if not set)
+  - serial: "00:00:5E:00:53:01"
+    type: player
+    pair_id: 1
+
+  - serial: "00:00:5E:00:53:01"
+    type: player
+    pair_id: 2
+
+  # Board antenna - simulate community cards
+  - serial: "00:00:5E:00:53:10"
+    type: board
+    pair_id: 1
+
+  # Muck antenna - cards go here when mucked
+  - serial: "00:00:5E:00:53:20"
+    type: muck
+    pair_id: 1
