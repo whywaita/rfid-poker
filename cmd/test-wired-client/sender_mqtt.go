@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -14,9 +17,10 @@ import (
 
 // MQTTCardSender sends card/boot events via MQTT publish.
 type MQTTCardSender struct {
-	client    mqtt.Client
-	seq       atomic.Uint32
-	startTime time.Time
+	client      mqtt.Client
+	seq         atomic.Uint32
+	startTime   time.Time
+	topicPrefix string
 }
 
 // MQTTConfig holds MQTT connection parameters.
@@ -26,12 +30,25 @@ type MQTTConfig struct {
 	User     string
 	Password string
 	ClientID string
+
+	// TLS settings (for AWS IoT Core etc.)
+	CACertFile     string // path to CA certificate
+	ClientCertFile string // path to client certificate
+	ClientKeyFile  string // path to client private key
+
+	// Topic prefix override (default: "rfid-poker")
+	TopicPrefix string
 }
 
 // NewMQTTCardSender creates a new MQTTCardSender and connects to the broker.
 func NewMQTTCardSender(cfg MQTTConfig) (*MQTTCardSender, error) {
+	scheme := "tcp"
+	if cfg.CACertFile != "" {
+		scheme = "tls"
+	}
+
 	opts := mqtt.NewClientOptions().
-		AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.Broker, cfg.Port)).
+		AddBroker(fmt.Sprintf("%s://%s:%d", scheme, cfg.Broker, cfg.Port)).
 		SetClientID(cfg.ClientID).
 		SetAutoReconnect(true).
 		SetConnectRetry(true).
@@ -43,6 +60,19 @@ func NewMQTTCardSender(cfg MQTTConfig) (*MQTTCardSender, error) {
 		opts.SetPassword(cfg.Password)
 	}
 
+	if cfg.CACertFile != "" {
+		tlsConfig, err := newTLSConfig(cfg.CACertFile, cfg.ClientCertFile, cfg.ClientKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("tls config: %w", err)
+		}
+		opts.SetTLSConfig(tlsConfig)
+	}
+
+	topicPrefix := cfg.TopicPrefix
+	if topicPrefix == "" {
+		topicPrefix = "rfid-poker"
+	}
+
 	client := mqtt.NewClient(opts)
 	token := client.Connect()
 	token.Wait()
@@ -51,9 +81,36 @@ func NewMQTTCardSender(cfg MQTTConfig) (*MQTTCardSender, error) {
 	}
 
 	return &MQTTCardSender{
-		client:    client,
-		startTime: time.Now(),
+		client:      client,
+		startTime:   time.Now(),
+		topicPrefix: topicPrefix,
 	}, nil
+}
+
+func newTLSConfig(caFile, certFile, keyFile string) (*tls.Config, error) {
+	caCert, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, fmt.Errorf("read CA cert: %w", err)
+	}
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		return nil, fmt.Errorf("failed to parse CA cert")
+	}
+
+	tlsConfig := &tls.Config{
+		RootCAs:    caCertPool,
+		MinVersion: tls.VersionTLS12,
+	}
+
+	if certFile != "" && keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("load client cert: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	return tlsConfig, nil
 }
 
 func (s *MQTTCardSender) Mode() string { return "MQTT" }
@@ -78,7 +135,7 @@ func (s *MQTTCardSender) SendCard(ctx context.Context, uid, deviceID string, pai
 		return fmt.Errorf("failed to marshal card message: %w", err)
 	}
 
-	topic := fmt.Sprintf("rfid-poker/%s/card", deviceID)
+	topic := fmt.Sprintf("%s/%s/card", s.topicPrefix, deviceID)
 	token := s.client.Publish(topic, 0, false, payload)
 	token.Wait()
 	return token.Error()
@@ -100,7 +157,7 @@ func (s *MQTTCardSender) SendBoot(ctx context.Context, deviceID string, pairIDs 
 		return fmt.Errorf("failed to marshal boot message: %w", err)
 	}
 
-	topic := fmt.Sprintf("rfid-poker/%s/boot", deviceID)
+	topic := fmt.Sprintf("%s/%s/boot", s.topicPrefix, deviceID)
 	token := s.client.Publish(topic, 0, false, payload)
 	token.Wait()
 	return token.Error()

@@ -55,6 +55,10 @@ func run() error {
 		mqttPort       int
 		mqttUser       string
 		mqttPassword   string
+		mqttCACert     string
+		mqttClientCert string
+		mqttClientKey  string
+		mqttTopicPfx   string
 	)
 
 	flag.StringVar(&serverURL, "server", "http://localhost:8080", "Server URL (HTTP mode)")
@@ -65,6 +69,10 @@ func run() error {
 	flag.IntVar(&mqttPort, "mqtt-port", 1883, "MQTT broker port")
 	flag.StringVar(&mqttUser, "mqtt-user", "", "MQTT username (optional)")
 	flag.StringVar(&mqttPassword, "mqtt-password", "", "MQTT password (optional)")
+	flag.StringVar(&mqttCACert, "mqtt-ca-cert", "", "Path to CA certificate for TLS (optional)")
+	flag.StringVar(&mqttClientCert, "mqtt-client-cert", "", "Path to client certificate for mTLS (optional)")
+	flag.StringVar(&mqttClientKey, "mqtt-client-key", "", "Path to client private key for mTLS (optional)")
+	flag.StringVar(&mqttTopicPfx, "mqtt-topic-prefix", "rfid-poker", "MQTT topic prefix")
 	flag.Parse()
 
 	// Load card config
@@ -104,11 +112,15 @@ func run() error {
 	case "mqtt":
 		clientID := fmt.Sprintf("test-wired-client-%d", os.Getpid())
 		s, err := NewMQTTCardSender(MQTTConfig{
-			Broker:   mqttBroker,
-			Port:     mqttPort,
-			User:     mqttUser,
-			Password: mqttPassword,
-			ClientID: clientID,
+			Broker:         mqttBroker,
+			Port:           mqttPort,
+			User:           mqttUser,
+			Password:       mqttPassword,
+			ClientID:       clientID,
+			CACertFile:     mqttCACert,
+			ClientCertFile: mqttClientCert,
+			ClientKeyFile:  mqttClientKey,
+			TopicPrefix:    mqttTopicPfx,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create MQTT sender: %w", err)
