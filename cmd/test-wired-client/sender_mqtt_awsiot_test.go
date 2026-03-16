@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -30,7 +31,7 @@ func TestMQTTCardSender_AWSIoT(t *testing.T) {
 	sender, err := NewMQTTCardSender(MQTTConfig{
 		Broker:         endpoint,
 		Port:           8883,
-		ClientID:       "abema-poker-test-go",
+		ClientID:       fmt.Sprintf("abema-poker-test-go-%d", os.Getpid()),
 		CACertFile:     caCert,
 		ClientCertFile: cert,
 		ClientKeyFile:  key,

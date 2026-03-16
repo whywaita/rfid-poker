@@ -40,8 +40,17 @@ type MQTTConfig struct {
 	TopicPrefix string
 }
 
+const (
+	mqttConnectTimeout = 10 * time.Second
+	mqttPublishTimeout = 5 * time.Second
+)
+
 // NewMQTTCardSender creates a new MQTTCardSender and connects to the broker.
 func NewMQTTCardSender(cfg MQTTConfig) (*MQTTCardSender, error) {
+	if (cfg.ClientCertFile == "") != (cfg.ClientKeyFile == "") {
+		return nil, fmt.Errorf("mqtt-client-cert and mqtt-client-key must both be set or both be empty")
+	}
+
 	scheme := "tcp"
 	if cfg.CACertFile != "" {
 		scheme = "tls"
@@ -75,7 +84,9 @@ func NewMQTTCardSender(cfg MQTTConfig) (*MQTTCardSender, error) {
 
 	client := mqtt.NewClient(opts)
 	token := client.Connect()
-	token.Wait()
+	if !token.WaitTimeout(mqttConnectTimeout) {
+		return nil, fmt.Errorf("mqtt connect: timeout after %s", mqttConnectTimeout)
+	}
 	if err := token.Error(); err != nil {
 		return nil, fmt.Errorf("mqtt connect: %w", err)
 	}
@@ -137,7 +148,9 @@ func (s *MQTTCardSender) SendCard(ctx context.Context, uid, deviceID string, pai
 
 	topic := fmt.Sprintf("%s/%s/card", s.topicPrefix, deviceID)
 	token := s.client.Publish(topic, 0, false, payload)
-	token.Wait()
+	if !token.WaitTimeout(mqttPublishTimeout) {
+		return fmt.Errorf("publish to %s: timeout after %s", topic, mqttPublishTimeout)
+	}
 	return token.Error()
 }
 
@@ -159,6 +172,8 @@ func (s *MQTTCardSender) SendBoot(ctx context.Context, deviceID string, pairIDs 
 
 	topic := fmt.Sprintf("%s/%s/boot", s.topicPrefix, deviceID)
 	token := s.client.Publish(topic, 0, false, payload)
-	token.Wait()
+	if !token.WaitTimeout(mqttPublishTimeout) {
+		return fmt.Errorf("publish to %s: timeout after %s", topic, mqttPublishTimeout)
+	}
 	return token.Error()
 }

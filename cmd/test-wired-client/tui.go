@@ -157,6 +157,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.lastMessage = "Cancelled"
 				return m, nil
 			case "enter":
+				if len(m.antennas) == 0 || m.selectedIdx >= len(m.antennas) {
+					m.lastMessage = errorStyle.Render("No antenna selected")
+					m.inputMode = ModeNormal
+					m.textInput.Reset()
+					return m, nil
+				}
 				input := strings.TrimSpace(m.textInput.Value())
 				if input != "" {
 					antenna := &m.antennas[m.selectedIdx]
@@ -356,7 +362,8 @@ func (m *Model) sendCardsCmd(antennaIdx int, serial string, cards []string, pair
 	}
 
 	return func() tea.Msg {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		for _, card := range cardsCopy {
 			uid, ok := cardToUID[strings.ToLower(card)]
 			if !ok {
@@ -516,6 +523,10 @@ func normalizeCardName(card string) string {
 	// Handle the card - rank is first character(s), suit is last character
 	suit := strings.ToLower(string(card[len(card)-1]))
 	rank := strings.ToUpper(card[:len(card)-1])
+
+	if rank == "10" {
+		rank = "T"
+	}
 
 	return rank + suit
 }

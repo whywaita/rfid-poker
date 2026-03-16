@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -183,12 +184,13 @@ func sendBootForAntennas(sender CardSender, antennas []AntennaConfig) error {
 	}
 
 	ctx := context.Background()
+	var errs []error
 	for deviceID, pairIDs := range devicePairIDs {
 		if err := sender.SendBoot(ctx, deviceID, pairIDs); err != nil {
-			return fmt.Errorf("SendBoot(%s): %w", deviceID, err)
+			errs = append(errs, fmt.Errorf("SendBoot(%s): %w", deviceID, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func loadCardConfig(configFilePath string) (*CardConfig, error) {

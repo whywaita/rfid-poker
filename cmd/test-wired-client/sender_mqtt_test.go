@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -14,22 +15,26 @@ import (
 	"github.com/mochi-mqtt/server/v2/listeners"
 )
 
-// helper to start an in-process MQTT broker on a random port
+// helper to start an in-process MQTT broker on an OS-assigned free port
 func startTestBroker(t *testing.T) (*mochi.Server, int) {
 	t.Helper()
+
+	// Reserve a free port from the OS
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve port: %v", err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+
 	server := mochi.New(nil)
 	_ = server.AddHook(new(auth.AllowHook), nil)
 
-	// Use port 0 for auto-assignment, but mochi needs an explicit port.
-	// Pick a high port and retry if needed.
-	port := 18830 + (time.Now().UnixNano() % 100)
-	addr := fmt.Sprintf(":%d", port)
 	tcp := listeners.NewTCP(listeners.Config{
 		ID:      "test",
-		Address: addr,
+		Address: fmt.Sprintf(":%d", port),
 	})
-	err := server.AddListener(tcp)
-	if err != nil {
+	if err := server.AddListener(tcp); err != nil {
 		t.Fatalf("AddListener: %v", err)
 	}
 	go func() {
@@ -37,7 +42,7 @@ func startTestBroker(t *testing.T) (*mochi.Server, int) {
 	}()
 	// Give the broker a moment to start
 	time.Sleep(100 * time.Millisecond)
-	return server, int(port)
+	return server, port
 }
 
 func TestMQTTCardSender_SendCard(t *testing.T) {
