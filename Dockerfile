@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.24 AS builder
+FROM golang:1.27.3 AS builder
 WORKDIR /go/github.com/whywaita/rfid-poker
 
 COPY ["./", "./"]
