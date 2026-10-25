@@ -1,10 +1,12 @@
 module github.com/whywaita/rfid-poker
 
-go 1.24.0
-toolchain go1.27.3
+go 1.27.3
 
 require (
 	entgo.io/ent v0.14.3
+	github.com/charmbracelet/bubbles v0.21.0
+	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/coder/websocket v1.8.13
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-sql-driver/mysql v1.9.2
@@ -15,6 +17,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/whywaita/poker-go v0.0.0-20240128181615-ff338443efbd
 	go.bug.st/serial v1.6.4
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -22,10 +25,7 @@ require (
 	github.com/BurntSushi/toml v1.2.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/bubbles v0.21.0 // indirect
-	github.com/charmbracelet/bubbletea v1.3.10 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
-	github.com/charmbracelet/lipgloss v1.1.0 // indirect
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
@@ -52,5 +52,4 @@ require (
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
