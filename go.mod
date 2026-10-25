@@ -1,6 +1,7 @@
 module github.com/whywaita/rfid-poker
 
 go 1.24.0
+toolchain go1.27.3
 
 require (
 	entgo.io/ent v0.14.3
